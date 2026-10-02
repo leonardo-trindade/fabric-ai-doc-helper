@@ -2,7 +2,6 @@
 name: iniciar-projeto
 description: Entrevista inicial do projeto de documentação e verificação da conta logada no Fabric. Use quando projeto/projeto.yaml não existir, quando o usuário pedir para iniciar/reconfigurar o projeto, ou quando informações do cliente (nome, projeto, workspace, conta) mudarem. Cria projeto/projeto.yaml e a estrutura de pastas.
 ---
-<!-- Cópia gerada de .agents/skills/iniciar-projeto/SKILL.md por scripts/sincronizar_skills.py. Edite a fonte, não esta cópia. -->
 
 # Iniciar projeto (login + entrevista)
 

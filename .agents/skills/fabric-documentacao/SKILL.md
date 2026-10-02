@@ -2,7 +2,6 @@
 name: fabric-documentacao
 description: Escreve e gera o documento técnico (.docx) da arquitetura Fabric no template fixo (visual Bluer e estrutura de seções fixa), usando o inventário, a leitura dos itens, o projeto.yaml e referências opcionais. Use quando o usuário pedir a documentação, uma nova versão dela, ou o que mudou desde a última versão.
 ---
-<!-- Cópia gerada de .agents/skills/fabric-documentacao/SKILL.md por scripts/sincronizar_skills.py. Edite a fonte, não esta cópia. -->
 
 # Documentação técnica (template fixo)
 

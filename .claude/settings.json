@@ -8,7 +8,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run --no-project --quiet python \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.py\"",
+            "command": "uv run --no-project --quiet python \"$CLAUDE_PROJECT_DIR/scripts/adaptadores/claude_code.py\"",
             "timeout": 30
           }
         ]

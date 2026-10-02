@@ -2,7 +2,6 @@
 name: fabric-cli
 description: Referência de comandos de LEITURA do Microsoft Fabric CLI (fab) neste projeto. Use ao consultar workspaces, itens, propriedades, tabelas e schemas do Fabric, ou ao diagnosticar login e certificados.
 ---
-<!-- Cópia gerada de .agents/skills/fabric-cli/SKILL.md por scripts/sincronizar_skills.py. Edite a fonte, não esta cópia. -->
 
 # Fabric CLI (fab) – somente leitura
 

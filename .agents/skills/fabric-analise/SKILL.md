@@ -2,7 +2,6 @@
 name: fabric-analise
 description: Como analisar a arquitetura de um workspace Fabric (medalhão, Lakehouses, notebooks, pipelines, Materialized Lake Views, orquestração, cargas, regras de negócio) a partir do inventário e da leitura de itens, e levantar pontos de atenção. Use depois do inventário e antes de escrever a documentação.
 ---
-<!-- Cópia gerada de .agents/skills/fabric-analise/SKILL.md por scripts/sincronizar_skills.py. Edite a fonte, não esta cópia. -->
 
 # Análise da arquitetura
 

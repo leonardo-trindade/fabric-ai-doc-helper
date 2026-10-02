@@ -1,4 +1,4 @@
-"""Converte arquivos de referência OPCIONAIS em texto para análise pelo Claude.
+"""Converte arquivos de referência OPCIONAIS em texto para análise pelo assistente.
 
 Uso:
     uv run python scripts/ler_referencia.py                 # todos os arquivos de projeto/referencias/

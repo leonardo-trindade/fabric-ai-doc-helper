@@ -10,6 +10,8 @@ from pathlib import Path
 
 import yaml
 
+from guarda import Bloqueio, verificar_fab
+
 RAIZ = Path(__file__).resolve().parent.parent
 PROJETO = RAIZ / "projeto"
 
@@ -31,11 +33,19 @@ def mascarar(texto: str) -> tuple[str, int]:
     return texto, n
 
 
-def fab(*args: str, check: bool = True) -> str:
+def fab_exe() -> str:
     exe = shutil.which("fab")
     if not exe:
         sys.exit("`fab` não encontrado. Rode via `uv run python scripts/...` após `uv sync`.")
-    p = subprocess.run([exe, *args], capture_output=True, text=True, encoding="utf-8", errors="replace")
+    return exe
+
+
+def fab(*args: str, check: bool = True) -> str:
+    try:
+        verificar_fab(list(args))  # mesmas regras da guarda, em qualquer ferramenta
+    except Bloqueio as e:
+        sys.exit(f"[guarda fabric-ai-doc-helper] BLOQUEADO: {e}")
+    p = subprocess.run([fab_exe(), *args], capture_output=True, text=True, encoding="utf-8", errors="replace")
     if check and p.returncode != 0:
         raise RuntimeError(f"fab {' '.join(args[:2])}: {((p.stdout or '') + (p.stderr or '')).strip()[:300]}")
     return p.stdout

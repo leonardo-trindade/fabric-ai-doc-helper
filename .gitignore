@@ -11,6 +11,8 @@ __pycache__/
 .vscode/
 
 # Modo manutenção é local e temporário: nunca versionar (um clone deve nascer protegido)
+.agents/MANUTENCAO
+# local antigo do arquivo de manutenção (antes de .agents/)
 .claude/MANUTENCAO
 
 # Segredos

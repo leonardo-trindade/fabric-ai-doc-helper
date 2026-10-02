@@ -2,7 +2,6 @@
 name: fabric-inventario
 description: Levanta o inventário (somente metadados) do workspace alvo e lê definições de notebooks, pipelines e environments sob demanda, sem copiar nenhum arquivo do workspace. Use antes de analisar ou documentar a arquitetura.
 ---
-<!-- Cópia gerada de .agents/skills/fabric-inventario/SKILL.md por scripts/sincronizar_skills.py. Edite a fonte, não esta cópia. -->
 
 # Inventário e leitura do workspace (sem cópias)
 
