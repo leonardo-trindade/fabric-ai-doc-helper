@@ -1,43 +1,65 @@
-"""Serviços do app Fabric Doc Helper: cadastro de projetos, detecção das ferramentas e abertura.
+"""Serviços do app Fabric Doc Helper: projetos, harness, detecção das ferramentas, abertura e versões.
 
 O app NÃO gerencia contas: a conta do Fabric é conferida pelo assistente em cada conversa
 (hook de início + scripts/verificar_login.py) e fica registrada em projeto/projeto.yaml.
 
-Dados do app (sem tokens, sem dados do workspace): %LOCALAPPDATA%/fabric-ai-doc-helper/app.json.
-Cada projeto é uma pasta própria, clonada desta instalação (RAIZ), com os dados em projeto/.
+Três coisas separadas:
+- Código-fonte: o repositório Git fabric-ai-doc-helper (branches, PRs, tags). Só para desenvolvimento.
+- App instalado: uma versão publicada (tag vX.Y.Z) baixada como .zip do GitHub e extraída em
+  %LOCALAPPDATA%/Programs/fabric-ai-doc-helper/versoes/<versão>/. Não é repositório Git.
+- Pasta de projeto: pasta comum com o "harness" (instruções, skills, guarda, scripts, template e
+  configuração do Python) copiado da versão instalada, mais projeto/ com os dados do cliente e o
+  marcador .fabric-doc-helper.json (versão do harness + impressão digital de cada arquivo copiado).
+  Não é repositório Git e não vai para o GitHub.
 
-Dois ambientes:
-- Produção: instalação do instalar.ps1 em %LOCALAPPDATA%/Programs/fabric-ai-doc-helper. Fica no branch
-  local `estavel`, que aponta para a última versão publicada (tag vX.Y.Z); os projetos acompanham esse branch.
-- Desenvolvimento: qualquer outro clone. Usa dados separados (…/fabric-ai-doc-helper/dev), pasta padrão
-  C:/Fabric-teste e os projetos acompanham o branch atual do clone. Atualização é feita com git.
-  FDH_PERFIL=dev|producao força o modo.
+Modo desenvolvimento: app rodado do código-fonte (qualquer pasta fora de versoes/). Usa dados separados
+(…/fabric-ai-doc-helper/dev), pasta padrão C:/Fabric-teste, e os projetos recebem o harness direto da
+árvore de trabalho (inclusive o que ainda não foi commitado). FDH_PERFIL=dev|producao força o modo.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
 import shutil
 import subprocess
+import tempfile
+import urllib.request
 import uuid
+import zipfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parents[1]  # instalação do app (origem dos clones de projeto)
+REPO = "leonardo-trindade/fabric-ai-doc-helper"
+VERSAO_MINIMA = (2, 0, 0)  # versões anteriores eram clones Git e não rodam neste formato
+RAIZ = Path(__file__).resolve().parents[1]  # versão em uso (origem do harness dos projetos)
 LOCAL = Path(os.environ.get("LOCALAPPDATA", Path.home()))
-INSTALACAO_PRODUCAO = LOCAL / "Programs" / "fabric-ai-doc-helper"
+BASE_INSTALACAO = LOCAL / "Programs" / "fabric-ai-doc-helper"
+VERSOES = BASE_INSTALACAO / "versoes"
+
+
+def _mesmo(a: Path, b: Path) -> bool:
+    return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
+
+
 _perfil = os.environ.get("FDH_PERFIL", "").lower()
-MODO_DEV = _perfil == "dev" or (_perfil != "producao" and
-                                os.path.normcase(str(RAIZ)) != os.path.normcase(str(INSTALACAO_PRODUCAO)))
+LEGADO = _mesmo(RAIZ, BASE_INSTALACAO)  # instalação v1 (clone Git): o instalador novo substitui
+MODO_DEV = _perfil == "dev" or (_perfil != "producao" and not LEGADO and not _mesmo(RAIZ.parent, VERSOES))
 DADOS = LOCAL / "fabric-ai-doc-helper" / ("dev" if MODO_DEV else "")
 ARQUIVO = DADOS / "app.json"
 PASTA_PADRAO = r"C:\Fabric-teste" if MODO_DEV else r"C:\Fabric"
-BRANCH_ESTAVEL = "estavel"
 SEM_JANELA = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 FERRAMENTAS = {"vscode": "VS Code", "claude": "Claude Desktop"}
+
+# Harness: o que vai para cada pasta de projeto (na raiz, onde as ferramentas de IA procuram).
+HARNESS_ARQUIVOS = ["AGENTS.md", "CLAUDE.md", ".mcp.json", "pyproject.toml", "uv.lock", ".python-version"]
+HARNESS_PASTAS = [".agents", ".claude", "scripts", "templates"]
+HARNESS_FORA = {".agents/MANUTENCAO", ".claude/settings.local.json"}  # nunca copiados
+DEPENDENCIAS = {"pyproject.toml", "uv.lock", ".python-version"}
+MARCADOR = ".fabric-doc-helper.json"
 
 
 # ---------------------------------------------------------------- dados
@@ -78,13 +100,22 @@ def agora() -> str:
 
 
 # ---------------------------------------------------------------- comandos
-def rodar(*args: str, cwd: Path | str | None = None, timeout: int = 600) -> subprocess.CompletedProcess:
+def rodar(*args: str, cwd: Path | str | None = None, timeout: int = 600,
+          env: dict | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(list(args), cwd=cwd, capture_output=True, text=True, encoding="utf-8",
-                          errors="replace", timeout=timeout, creationflags=SEM_JANELA)
+                          errors="replace", timeout=timeout, creationflags=SEM_JANELA,
+                          env={**os.environ, **env} if env else None)
 
 
 def _erro(r: subprocess.CompletedProcess) -> str:
     return ((r.stderr or "") + (r.stdout or "")).strip()[-600:]
+
+
+def _apagar(p: Path) -> None:
+    def tirar_somente_leitura(func, caminho, _):
+        os.chmod(caminho, 0o666)
+        func(caminho)
+    shutil.rmtree(p, onerror=tirar_somente_leitura)
 
 
 # ---------------------------------------------------------------- ferramentas
@@ -129,7 +160,7 @@ def _vscode_exe() -> str | None:
                     continue
     except ImportError:
         pass
-    candidatos += [Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Microsoft VS Code" / "Code.exe",
+    candidatos += [LOCAL / "Programs" / "Microsoft VS Code" / "Code.exe",
                    Path(os.environ.get("ProgramFiles", "")) / "Microsoft VS Code" / "Code.exe"]
     return next((str(c) for c in candidatos if c.is_file()), None)
 
@@ -143,7 +174,7 @@ def _claude_app_id() -> str | None:
 
 def detectar_ferramentas() -> Ferramentas:
     f = Ferramentas(vscode=_vscode_exe(), claude_app_id=_claude_app_id())
-    antigo = Path(os.environ.get("LOCALAPPDATA", "")) / "AnthropicClaude" / "claude.exe"
+    antigo = LOCAL / "AnthropicClaude" / "claude.exe"
     if not f.claude_app_id and antigo.is_file():
         f.claude_exe = str(antigo)
     return f
@@ -161,6 +192,73 @@ def instalar_extensao(f: Ferramentas) -> tuple[bool, str]:
     cli = Path(f.vscode).parent / "bin" / "code.cmd"
     r = rodar(str(cli) if cli.is_file() else "code", "--install-extension", "anthropic.claude-code", timeout=300)
     return r.returncode == 0, _erro(r)
+
+
+# ---------------------------------------------------------------- harness
+def _hash(p: Path) -> str:
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def arquivos_harness(origem: Path | None = None) -> dict[str, Path]:
+    """Arquivos do harness na origem (padrão: a versão em uso), por caminho relativo (com '/')."""
+    origem = origem or RAIZ
+    out: dict[str, Path] = {}
+    for nome in HARNESS_ARQUIVOS:
+        if (origem / nome).is_file():
+            out[nome] = origem / nome
+    for pasta in HARNESS_PASTAS:
+        for p in sorted((origem / pasta).rglob("*")):
+            rel = p.relative_to(origem).as_posix()
+            if p.is_file() and rel not in HARNESS_FORA and "__pycache__" not in p.parts and p.suffix != ".pyc":
+                out[rel] = p
+    return out
+
+
+def ler_marcador(pasta: Path | str) -> dict:
+    try:
+        return json.loads((Path(pasta) / MARCADOR).read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _gravar_marcador(pasta: Path, dados: dict) -> None:
+    (pasta / MARCADOR).write_text(json.dumps(dados, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def aplicar_harness(destino: Path, origem: Path | None = None) -> tuple[bool, str | None]:
+    """Deixa o harness da pasta igual ao da origem. Retorna (dependências mudaram?, aviso).
+
+    Só toca nos arquivos do harness: projeto/, .venv e qualquer outro arquivo ficam como estão.
+    Se algum arquivo do harness foi editado na pasta (impressão digital diferente da registrada),
+    nada é alterado e um aviso é retornado.
+    """
+    marc = ler_marcador(destino)
+    antigos: dict[str, str] = marc.get("arquivos", {})
+    alterados = [rel for rel, h in antigos.items() if (destino / rel).is_file() and _hash(destino / rel) != h]
+    if alterados:
+        lista = ", ".join(alterados[:3]) + ("…" if len(alterados) > 3 else "")
+        return False, f"O assistente desta pasta foi editado localmente ({lista}); ele não foi atualizado."
+
+    origem = origem or RAIZ
+    novos = {rel: (p, _hash(p)) for rel, p in arquivos_harness(origem).items()}
+    if not novos:
+        return False, f"Harness não encontrado em {origem}."
+    hashes = {rel: h for rel, (_, h) in novos.items()}
+    versao = versao_atual()
+    if hashes == antigos and marc.get("versao") == versao:
+        return False, None
+    deps = any(antigos.get(rel) != hashes.get(rel) for rel in DEPENDENCIAS)
+    if hashes != antigos:
+        for rel in set(antigos) - set(novos):  # arquivos que saíram do harness nesta versão
+            (destino / rel).unlink(missing_ok=True)
+        for rel, (p, _) in novos.items():
+            alvo = destino / rel
+            alvo.parent.mkdir(parents=True, exist_ok=True)
+            if alvo.exists():
+                os.chmod(alvo, 0o666)
+            shutil.copyfile(p, alvo)
+    _gravar_marcador(destino, {**marc, "versao": versao, "atualizado_em": agora(), "arquivos": hashes})
+    return deps, None
 
 
 # ---------------------------------------------------------------- projetos
@@ -182,23 +280,37 @@ def _yaml_str(v: str) -> str:
     return '"' + v.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+LEIA_ME = """# {cliente} · {projeto}
+
+Pasta de projeto criada pelo **Fabric Doc Helper** em {data}.
+
+- Abra esta pasta no VS Code (painel do Claude Code) ou na aba Code do Claude Desktop e diga
+  "vamos começar". O app Fabric Doc Helper faz isso pelo botão **Abrir**.
+- Os dados do cliente ficam em `projeto/` (referências, inventário, análise e documentos).
+- Os demais arquivos (AGENTS.md, CLAUDE.md, .agents/, .claude/, scripts/, templates/) são o
+  assistente. Não edite: o app os atualiza ao abrir o projeto.
+- Esta pasta não é um repositório Git e não deve ir para o GitHub.
+"""
+
+
 def criar_projeto(cfg: Config, *, cliente: str, projeto: str, workspace: str, autor: str,
                   pasta: str, ferramenta: str, progresso=lambda msg: None) -> Projeto:
-    """Clona esta instalação para a pasta do projeto, prepara o ambiente e grava o projeto.yaml."""
+    """Cria a pasta do projeto com o harness da versão em uso, o ambiente Python e o projeto.yaml."""
     destino = Path(pasta)
     if destino.exists() and any(destino.iterdir()):
         raise ValueError(f"A pasta já existe e não está vazia: {destino}")
-    if any(os.path.normcase(p.pasta) == os.path.normcase(str(destino)) for p in cfg.projetos):
+    if any(_mesmo(Path(p.pasta), destino) for p in cfg.projetos):
         raise ValueError("Já existe um projeto cadastrado nessa pasta.")
 
     progresso("Copiando o assistente para a pasta do projeto…")
-    destino.parent.mkdir(parents=True, exist_ok=True)
-    branch = branch_origem()
-    if not branch:
-        raise RuntimeError("A instalação não está em um branch (HEAD solto). Rode 'Atualizar app' ou o instalador.")
-    r = rodar("git", "clone", "--quiet", "--branch", branch, str(RAIZ), str(destino))
-    if r.returncode != 0:
-        raise RuntimeError(f"Falha ao criar a pasta do projeto (git clone): {_erro(r)}")
+    destino.mkdir(parents=True, exist_ok=True)
+    pid = uuid.uuid4().hex
+    _gravar_marcador(destino, {"id": pid, "criado_em": agora()})
+    _, aviso = aplicar_harness(destino)
+    if aviso:
+        raise RuntimeError(aviso)
+    (destino / "LEIA-ME.md").write_text(
+        LEIA_ME.format(cliente=cliente.strip(), projeto=projeto.strip(), data=agora()), encoding="utf-8")
 
     progresso("Instalando o ambiente (uv sync)…")
     r = rodar("uv", "sync", "--quiet", cwd=destino)
@@ -206,13 +318,11 @@ def criar_projeto(cfg: Config, *, cliente: str, projeto: str, workspace: str, au
         raise RuntimeError(f"Falha no uv sync: {_erro(r)}")
 
     progresso("Gravando o projeto…")
-    pid = uuid.uuid4().hex
     proj_dir = destino / "projeto"
     for sub in ("referencias", "inventario", "analise", "docs/revisado", "planos"):
         (proj_dir / sub).mkdir(parents=True, exist_ok=True)
-    (proj_dir / ".id").write_text(pid, encoding="utf-8")
     (proj_dir / "projeto.yaml").write_text(
-        "# Gerado pelo app Fabric Doc Helper; a entrevista (iniciar-projeto) completa o restante. Não versionar.\n"
+        "# Gerado pelo app Fabric Doc Helper; a entrevista (iniciar-projeto) completa o restante.\n"
         f"cliente: {_yaml_str(cliente)}\n"
         f"projeto: {_yaml_str(projeto)}\n"
         'fase: ""\n'
@@ -240,15 +350,18 @@ def criar_projeto(cfg: Config, *, cliente: str, projeto: str, workspace: str, au
 
 
 def adicionar_existente(cfg: Config, pasta: str, ferramenta: str) -> Projeto:
-    """Cadastra no app uma pasta de projeto criada fora dele (clone manual)."""
+    """Cadastra no app uma pasta de projeto que não está na lista (outro computador, versão antiga…)."""
     destino = Path(pasta)
-    if not (destino / "AGENTS.md").is_file() or not (destino / "scripts" / "guarda.py").is_file():
-        raise ValueError("Essa pasta não é um clone do fabric-ai-doc-helper.")
-    if any(os.path.normcase(p.pasta) == os.path.normcase(str(destino)) for p in cfg.projetos):
+    marc = ler_marcador(destino)
+    if not marc and not ((destino / "AGENTS.md").is_file() and (destino / "scripts" / "guarda.py").is_file()):
+        raise ValueError("Essa pasta não é um projeto do Fabric Doc Helper.")
+    if any(_mesmo(Path(p.pasta), destino) for p in cfg.projetos):
         raise ValueError("Essa pasta já está cadastrada.")
     y = ler_yaml(destino)
-    id_arq = destino / "projeto" / ".id"
-    pid = id_arq.read_text(encoding="utf-8").strip() if id_arq.is_file() else uuid.uuid4().hex
+    id_antigo = destino / "projeto" / ".id"  # projetos da v1
+    pid = marc.get("id") or (id_antigo.read_text(encoding="utf-8").strip() if id_antigo.is_file() else uuid.uuid4().hex)
+    if not marc:
+        _gravar_marcador(destino, {"id": pid, "criado_em": agora()})
     p = Projeto(id=pid, cliente=y.get("cliente") or destino.name, projeto=y.get("projeto") or "",
                 pasta=str(destino), ferramenta=ferramenta, criado_em=agora())
     cfg.projetos.append(p)
@@ -274,6 +387,7 @@ class Estado:
     conta: str
     workspace: str
     documentos: list[Path]
+    versao_harness: str = ""
 
 
 def estado(p: Projeto) -> Estado:
@@ -298,28 +412,22 @@ def estado(p: Projeto) -> Estado:
         etapa = f"Revisado ({revisados[0].name})"
     else:
         etapa = f"Documento gerado ({docs[0].name})"
-    return Estado(True, etapa, y.get("conta_fabric") or "", y.get("workspace_alvo") or "", revisados + docs)
+    return Estado(True, etapa, y.get("conta_fabric") or "", y.get("workspace_alvo") or "", revisados + docs,
+                  ler_marcador(pasta).get("versao", ""))
 
 
 def atualizar_projeto(p: Projeto) -> str | None:
-    """Deixa o assistente do projeto igual ao da instalação (versão publicada, ou branch atual em dev).
-
-    Também vale para voltar a uma versão anterior. A pasta projeto/ (ignorada pelo Git) nunca é tocada;
-    se houver alterações locais nos arquivos do assistente, nada é feito e um aviso é retornado.
-    """
-    branch = branch_origem()
-    if not branch:
-        return "A instalação não está em um branch; o projeto não foi atualizado."
-    if rodar("git", "status", "--porcelain", "--untracked-files=no", cwd=p.pasta).stdout.strip():
-        return "O assistente desta pasta tem alterações locais; ele não foi atualizado."
-    r = rodar("git", "fetch", "--quiet", "origin", cwd=p.pasta, timeout=120)
-    if r.returncode == 0:
-        r = rodar("git", "checkout", "--quiet", "-B", branch, f"origin/{branch}", cwd=p.pasta)
-    aviso = None if r.returncode == 0 else f"Não foi possível atualizar o assistente nesta pasta: {_erro(r)}"
-    r = rodar("uv", "sync", "--quiet", cwd=p.pasta)
-    if r.returncode != 0:
-        aviso = f"Falha no uv sync: {_erro(r)}"
-    return aviso
+    """Deixa o harness do projeto igual ao da versão em uso (também ao voltar de versão).
+    Retorna aviso, se houver. A pasta projeto/ nunca é tocada."""
+    pasta = Path(p.pasta)
+    deps, aviso = aplicar_harness(pasta)
+    if aviso:
+        return aviso
+    if deps or not (pasta / ".venv").is_dir():
+        r = rodar("uv", "sync", "--quiet", cwd=pasta)
+        if r.returncode != 0:
+            return f"Falha no uv sync: {_erro(r)}"
+    return None
 
 
 def abrir(p: Projeto, f: Ferramentas) -> str:
@@ -341,64 +449,138 @@ def abrir(p: Projeto, f: Ferramentas) -> str:
 
 
 # ---------------------------------------------------------------- versões
-def _git(*args: str, timeout: int = 120) -> subprocess.CompletedProcess:
-    return rodar("git", "-c", "http.sslBackend=schannel", *args, cwd=RAIZ, timeout=timeout)
+SEMVER = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
 
 
-def branch_origem() -> str | None:
-    """Branch que os projetos acompanham: `estavel` em produção; o branch atual do clone em dev."""
-    if not MODO_DEV:
-        return BRANCH_ESTAVEL
-    b = _git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
-    return None if b in {"", "HEAD"} else b
+def _semver(tag: str) -> tuple[int, int, int] | None:
+    m = SEMVER.match(tag)
+    return tuple(int(x) for x in m.groups()) if m else None  # type: ignore[return-value]
 
 
 def versao_atual() -> str:
-    """Ex.: v1.2.0 (produção) ou v1.2.0-3-gabc123-dirty / abc123 (desenvolvimento)."""
-    return _git("describe", "--tags", "--always", "--dirty").stdout.strip() or "?"
+    """Produção: nome da pasta da versão (vX.Y.Z). Desenvolvimento: git describe, ou 'dev'."""
+    if MODO_DEV:
+        if (RAIZ / ".git").exists():
+            r = rodar("git", "describe", "--tags", "--always", "--dirty", cwd=RAIZ, timeout=30)
+            if r.returncode == 0 and r.stdout.strip():
+                return "dev-" + r.stdout.strip()
+        return "dev"
+    if LEGADO:
+        return "v1 (antiga)"
+    return RAIZ.name
 
 
-def versoes_publicadas(buscar: bool = True) -> list[str]:
-    """Tags vX.Y.Z, da mais nova para a mais antiga (busca as novas no GitHub se `buscar`)."""
-    if buscar:
-        _git("fetch", "--quiet", "--tags", "--force", "origin", timeout=120)
-    return [t for t in _git("tag", "-l", "v*", "--sort=-v:refname").stdout.split() if t]
+def _baixar(url: str, timeout: int = 60) -> bytes:
+    req = urllib.request.Request(url, headers={"User-Agent": "fabric-doc-helper",
+                                               "Accept": "application/vnd.github+json"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:  # certificados do Windows (ssl padrão)
+        return r.read()
+
+
+def versoes_publicadas() -> list[str]:
+    """Versões (tags vX.Y.Z ≥ v2.0.0) publicadas no GitHub, da mais nova para a mais antiga."""
+    dados = json.loads(_baixar(f"https://api.github.com/repos/{REPO}/tags?per_page=100"))
+    tags = [t["name"] for t in dados if (_semver(t["name"]) or (0, 0, 0)) >= VERSAO_MINIMA]
+    return sorted(tags, key=_semver, reverse=True)
+
+
+def versoes_instaladas() -> list[str]:
+    if not VERSOES.is_dir():
+        return []
+    tags = [p.name for p in VERSOES.iterdir() if _semver(p.name) and (p / "app" / "main.py").is_file()]
+    return sorted(tags, key=_semver, reverse=True)
 
 
 def atualizacao_disponivel() -> str | None:
-    """Tag mais nova que a instalada (só em produção)."""
-    if MODO_DEV:
+    """Versão publicada mais nova que a em uso (só em produção)."""
+    if MODO_DEV or LEGADO:
         return None
-    tags = versoes_publicadas()
-    if not tags:
+    try:
+        tags = versoes_publicadas()
+    except Exception:  # noqa: BLE001  (sem internet, limite da API…)
         return None
-    instalada = _git("describe", "--tags", "--abbrev=0", "HEAD").stdout.strip()
-    return tags[0] if tags[0] != instalada else None
+    atual = _semver(versao_atual()) or (0, 0, 0)
+    return tags[0] if tags and _semver(tags[0]) > atual else None
 
 
 def novidades(tag: str) -> str:
-    """Trecho do CHANGELOG.md da versão `tag` (lido da própria tag)."""
-    txt = _git("show", f"{tag}:CHANGELOG.md").stdout
+    """Trecho do CHANGELOG.md da versão `tag` (lido da própria tag no GitHub)."""
+    try:
+        txt = _baixar(f"https://raw.githubusercontent.com/{REPO}/{tag}/CHANGELOG.md").decode("utf-8")
+    except Exception:  # noqa: BLE001
+        return f"{tag}: não foi possível ler as novidades agora."
     m = re.search(rf"(?ms)^## {re.escape(tag)}\b.*?(?=^## |\Z)", txt)
     return m.group(0).strip() if m else f"{tag}: sem notas no CHANGELOG.md."
 
 
+def _extrair_versao(tag: str) -> Path:
+    """Baixa o .zip da tag e extrai em versoes/<tag> (sem .git)."""
+    destino = VERSOES / tag
+    VERSOES.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=VERSOES, prefix=".baixando-") as tmp:
+        arq = Path(tmp) / "versao.zip"
+        arq.write_bytes(_baixar(f"https://github.com/{REPO}/archive/refs/tags/{tag}.zip", timeout=300))
+        with zipfile.ZipFile(arq) as z:
+            z.extractall(tmp)
+        raiz_zip = next(p for p in Path(tmp).iterdir() if p.is_dir())  # fabric-ai-doc-helper-X.Y.Z/
+        if destino.exists():
+            _apagar(destino)
+        shutil.move(str(raiz_zip), str(destino))
+    return destino
+
+
+def criar_atalhos(raiz: Path, nome: str = "Fabric Doc Helper") -> tuple[bool, str]:
+    """Atalhos no Menu Iniciar e na Área de Trabalho apontando para a versão em `raiz`."""
+    script = (
+        "$s = New-Object -ComObject WScript.Shell; "
+        "foreach ($p in @([Environment]::GetFolderPath('Programs'), [Environment]::GetFolderPath('Desktop'))) { "
+        "$a = $s.CreateShortcut((Join-Path $p ($env:FDH_NOME + '.lnk'))); "
+        "$a.TargetPath = $env:FDH_ALVO; $a.Arguments = '\"' + $env:FDH_MAIN + '\"'; "
+        "$a.WorkingDirectory = $env:FDH_RAIZ; $a.IconLocation = \"$env:SystemRoot\\System32\\imageres.dll,111\"; "
+        "$a.Description = 'Projetos de documentacao Microsoft Fabric'; $a.Save() }")
+    r = rodar("powershell", "-NoProfile", "-Command", script, timeout=60, env={
+        "FDH_NOME": nome, "FDH_RAIZ": str(raiz), "FDH_MAIN": str(raiz / "app" / "main.py"),
+        "FDH_ALVO": str(raiz / ".venv" / "Scripts" / "pythonw.exe")})
+    return r.returncode == 0, _erro(r)
+
+
+def _limpar_versoes(manter: set[str], quantas: int = 3) -> None:
+    """Mantém as `quantas` versões mais novas instaladas (e as de `manter`); apaga as demais."""
+    for tag in versoes_instaladas()[quantas:]:
+        if tag not in manter:
+            try:
+                _apagar(VERSOES / tag)
+            except OSError:
+                pass  # em uso; fica para a próxima
+
+
 def instalar_versao(tag: str | None = None) -> tuple[bool, str]:
-    """Produção: põe a instalação na versão `tag` (padrão: a mais nova). Serve para atualizar e voltar."""
+    """Produção: instala a versão `tag` (padrão: a mais nova) e aponta os atalhos para ela.
+    Serve para atualizar e para voltar atrás (versões já baixadas são reaproveitadas)."""
     if MODO_DEV:
-        return False, "Modo desenvolvimento: atualize este clone com git (branches e pull)."
-    tags = versoes_publicadas()
+        return False, "Modo desenvolvimento: este app roda do código-fonte; atualize com git."
+    try:
+        tags = versoes_publicadas()
+    except Exception as e:  # noqa: BLE001
+        return False, f"Não foi possível consultar as versões no GitHub: {e}"
     if not tags:
-        return False, "Ainda não há versão publicada (tag vX.Y.Z) no repositório."
+        return False, "Ainda não há versão publicada (v2.0.0 ou mais nova)."
     alvo = tag or tags[0]
     if alvo not in tags:
         return False, f"Versão {alvo} não encontrada."
-    if _git("status", "--porcelain", "--untracked-files=no").stdout.strip():
-        return False, "A instalação tem alterações locais; reinstale com o instalar.ps1."
-    r = _git("checkout", "--quiet", "-B", BRANCH_ESTAVEL, alvo)
-    if r.returncode != 0:
-        return False, _erro(r)
-    r = rodar("uv", "sync", "--quiet", cwd=RAIZ)
+    try:
+        destino = VERSOES / alvo
+        if not (destino / "app" / "main.py").is_file():
+            destino = _extrair_versao(alvo)
+    except Exception as e:  # noqa: BLE001
+        return False, f"Falha ao baixar a versão {alvo}: {e}"
+    r = rodar("uv", "sync", "--quiet", cwd=destino)
     if r.returncode != 0:
         return False, f"Falha no uv sync: {_erro(r)}"
-    return True, f"Instalada a versão {alvo}. Reinicie o app; cada projeto recebe a versão ao ser aberto."
+    ok, msg = criar_atalhos(destino)
+    if not ok:
+        return False, f"Versão {alvo} instalada, mas os atalhos não foram atualizados: {msg}"
+    (BASE_INSTALACAO / "atual.txt").write_text(alvo, encoding="utf-8")
+    _limpar_versoes(manter={alvo, versao_atual()})
+    return True, (f"Versão {alvo} instalada. Feche e abra o app pelo atalho; cada projeto recebe a "
+                  "versão nova ao ser aberto.")

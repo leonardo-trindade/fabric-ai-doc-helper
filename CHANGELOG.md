@@ -5,6 +5,21 @@ atualização, então escreva para quem usa: o que muda no dia a dia e se é pre
 
 Formato: `## vX.Y.Z — AAAA-MM-DD` (X = muda o jeito de trabalhar · Y = novidade · Z = correção).
 
+## v2.0.0 — 2026-10-02
+Muda o jeito de instalar: o app e as pastas de projeto deixam de ser repositórios Git.
+
+**Quem tem a v1 instalada:** rode o comando de instalação de novo (feche o app antes):
+`irm https://raw.githubusercontent.com/leonardo-trindade/fabric-ai-doc-helper/main/instalar.ps1 | iex`.
+Seus projetos e configurações são mantidos.
+
+- Não precisa mais de Git: o instalador baixa a versão publicada e só exige o uv.
+- Cada projeto é uma pasta comum (sem `.git`) com o assistente, um `LEIA-ME.md` e os seus dados
+  em `projeto/`. Não é para ir ao GitHub.
+- Ao abrir um projeto, o app atualiza o assistente para a versão instalada, sem mexer nos seus
+  dados; se o assistente da pasta tiver sido editado à mão, ele avisa em vez de sobrescrever.
+- As 3 versões mais novas ficam guardadas: voltar atrás nas Configurações é imediato.
+- A janela do app volta a abrir no tamanho certo.
+
 ## v1.0.1 — 2026-10-02
 Correção de segurança. Atualize assim que o app avisar.
 - O assistente não consegue mais usar o Git para alterar nada (commit, push, tag…) nem o GitHub
