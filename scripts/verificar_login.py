@@ -7,7 +7,7 @@ Uso:
 
 Códigos de saída:
     0  logado na conta registrada no projeto
-    3  sem login (usuário deve rodar `uv run fab auth login`)
+    3  sem login (rode `uv run python scripts/entrar.py`)
     4  logado em OUTRA conta/tenant (confirmar com o usuário; se errado: logout + login)
     5  logado, mas o projeto ainda não tem conta registrada (confirmar com o usuário e --registrar)
 """
@@ -38,7 +38,7 @@ def main() -> None:
 
     if not s["logado"]:
         print("SEM LOGIN no Fabric CLI.")
-        print("Ação: peça ao usuário para rodar no terminal dele: uv run fab auth login")
+        print("Ação: avise o usuário e rode: uv run python scripts/entrar.py (login pelo navegador)")
         sys.exit(3)
 
     print(f"Conta logada : {s['conta']}")
@@ -62,7 +62,7 @@ def main() -> None:
     if not conta_esp and not tenant_esp:
         print("RESULTADO: projeto sem conta registrada. Confirme com o usuário se esta é a conta do cliente;")
         print("se sim: uv run python scripts/verificar_login.py --registrar")
-        print("se não: uv run fab auth logout  → usuário roda: uv run fab auth login")
+        print("se não: com permissão do usuário, rode: uv run python scripts/entrar.py --trocar")
         sys.exit(5)
 
     ok_conta = not conta_esp or (s["conta"] or "").lower() == conta_esp.lower()
@@ -71,7 +71,7 @@ def main() -> None:
         print(f"RESULTADO: OK — conta do projeto ({conta_esp or tenant_esp}).")
         sys.exit(0)
     print(f"RESULTADO: CONTA DIFERENTE. O projeto espera {conta_esp or '?'} (tenant {tenant_esp or '?'}).")
-    print("Ação: confirme com o usuário. Se for outra conta: uv run fab auth logout  → usuário roda: uv run fab auth login")
+    print("Ação: mostre as duas contas e peça permissão para trocar; se sim: uv run python scripts/entrar.py --trocar")
     sys.exit(4)
 
 

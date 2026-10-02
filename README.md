@@ -11,44 +11,61 @@ e tudo do cliente fica na pasta `projeto/`, que nunca vai para o Git.
 
 ---
 
-## 1. Pré-requisitos (uma vez por máquina)
+## 1. Início rápido
 
-| Ferramenta | Para quê | Instalação |
-|---|---|---|
-| Git | clonar o repositório | `winget install Git.Git` |
-| uv | Python 3.12 + dependências (inclui o `fab`) | `winget install astral-sh.uv` |
-| VS Code + extensão Claude Code | trabalhar com o assistente (outras ferramentas: seção 6) | [code.visualstudio.com](https://code.visualstudio.com) |
-| Microsoft Word *(recomendado)* | atualizar sumário e exportar PDF | — |
-
-Não é preciso instalar Python nem o Fabric CLI manualmente: o `uv` cuida disso.
-
-## 2. Começar um projeto
-
+**1. Instale o app** (uma vez por computador). Cole no PowerShell:
 ```powershell
-git clone <url-do-repositorio> "C:\Trabalho\<Cliente>-<Projeto>"
-cd "C:\Trabalho\<Cliente>-<Projeto>"
-uv sync                      # instala Python 3.12, Fabric CLI e bibliotecas (versões travadas)
-uv run fab auth login        # login MANUAL com a conta fornecida pelo cliente (abre o navegador)
-code .                       # abre no VS Code
+irm https://raw.githubusercontent.com/leonardo-trindade/fabric-ai-doc-helper/main/instalar.ps1 | iex
 ```
+O instalador instala Git e uv se faltarem, prepara tudo e cria o atalho **Fabric Doc Helper**
+no Menu Iniciar e na Área de Trabalho. Não é preciso instalar Python nem o Fabric CLI.
 
-No assistente, basta começar a conversa (ex.: *"vamos documentar o projeto"*).
-Na primeira vez, o assistente faz uma **entrevista** rápida:
+**2. Crie um projeto** no app (**Novo projeto**): cliente, projeto/fase, workspace do Fabric,
+autor, pasta e onde você vai conversar com o assistente: **VS Code** (com a extensão Claude Code)
+ou **Claude Desktop**. Opções não instaladas no PC aparecem em cinza.
 
+**3. Abra e converse.** O app abre o projeto na ferramenta escolhida. Diga *"vamos começar"*.
+- **VS Code:** a pasta abre direto; use o painel do Claude Code.
+- **Claude Desktop:** o app abre o Claude e copia o caminho da pasta; na aba **Code**, clique
+  em *Select folder* e cole (Ctrl+V). (O Claude Desktop ainda não permite abrir uma pasta
+  automaticamente.)
+
+Na primeira conversa o assistente mostra a conta do Fabric logada e pergunta se é a do cliente:
+- **É:** a conta fica registrada no projeto.
+- **Não é / não há login:** com a sua permissão, ele sai da conta atual e abre a janela de
+  login da Microsoft; você só escolhe a conta e entra.
+
+Depois disso, **toda conversa e todo acesso ao Fabric conferem a conta**. Se você entrar em
+outra conta no meio do caminho (por exemplo, para outro cliente), o assistente percebe, pede
+permissão e refaz o login antes de continuar.
+
+### Vários clientes no mesmo computador
+- **Uma pasta por projeto.** Dados, análises, documentos e a memória do assistente ficam na
+  pasta do projeto; o assistente não lê pastas de outros projetos.
+- O login do Fabric CLI é um só para o computador, por isso a conta é **registrada em cada
+  projeto e conferida sempre**: abrir o projeto do cliente B logado no cliente A é detectado.
+- Projetos do mesmo cliente podem usar a mesma conta.
+- Evite pastas no OneDrive: os dados do cliente seriam sincronizados (o app avisa).
+
+### Sem o app (clone manual)
+```powershell
+git -c http.sslBackend=schannel clone https://github.com/leonardo-trindade/fabric-ai-doc-helper.git "C:\Fabric\<Cliente>-<Projeto>"
+cd "C:\Fabric\<Cliente>-<Projeto>"
+uv sync
+code .        # ou abra a pasta na aba Code do Claude Desktop
+```
+O assistente faz a entrevista completa (cliente, projeto, workspace, autor) e o mesmo fluxo de
+conta. Para listar a pasta no app depois: **Adicionar pasta existente**.
+
+> Abra o assistente **já na pasta do projeto**. Uma conversa iniciada em outra pasta (ou antes
+> do clone) não carrega as instruções, o hook de início nem a guarda.
+
+O que o assistente pode perguntar na entrevista (o app já preenche os obrigatórios):
 - **Obrigatório:** nome do cliente, nome do projeto, workspace do Fabric a documentar, autor.
 - **Opcional:** participantes, workspace legado (comparativo), itens do escopo, renomeações
   de nomenclatura, classificação do documento.
 
-As respostas ficam salvas em `projeto/projeto.yaml`. Você não precisa editar esse arquivo;
-se algo mudar, é só avisar o assistente.
-
-**Conta do Fabric:** o login do `fab` vale para o usuário do Windows, não para a pasta — a
-máquina pode continuar logada no cliente anterior. No início de toda conversa o assistente mostra
-a conta logada e pergunta se é a do cliente. Se não for, ele faz o logout e pede que você rode
-`uv run fab auth login` com a conta certa. A conta confirmada fica registrada no projeto e, dali
-em diante, os scripts param sozinhos se detectarem outra conta.
-
-## 3. Arquivos de referência (opcionais)
+## 2. Arquivos de referência (opcionais)
 
 Coloque em `projeto/referencias/` qualquer material que ajude a documentar. O assistente
 pergunta o papel de cada arquivo e quais partes considerar.
@@ -61,7 +78,7 @@ pergunta o papel de cada arquivo e quais partes considerar.
 
 Dica: em planilhas com abas de uso interno, diga ao assistente quais abas **não** considerar.
 
-## 4. Fluxo de trabalho
+## 3. Fluxo de trabalho
 
 | Passo | Peça ao assistente | O que acontece |
 |---|---|---|
@@ -78,17 +95,18 @@ Dica: em planilhas com abas de uso interno, diga ao assistente quais abas **não
   preservando suas edições.
 - Marcações em **dourado** `{{...}}` no documento são pendências para você completar.
 
-## 5. Segurança (guarda)
+## 4. Segurança (guarda)
 
 As regras ficam em `scripts/guarda.py` (independente de ferramenta) e são aplicadas em duas camadas:
 
 | Camada | Onde vale | O que bloqueia |
 |---|---|---|
-| `scripts/fab_ro.py` e scripts do projeto | **qualquer ferramenta** | `fab` de escrita (`rm`, `mv`, `import`, `run`, `set`, `mkdir`, `api` não-GET…), cópias (`export`, `cp`, `-o`), `auth login` pelo assistente, workspaces fora do projeto e conta logada diferente da registrada |
-| Adaptador de hook (`scripts/adaptadores/`) | ferramentas com adaptador (hoje: Claude Code) | Tudo acima, mais: arquivos **fora da pasta do clone** e pastas sensíveis (`~/.config/fab`, `~/.ssh`, `~/.azure`, `.env`); leituras de itens redirecionadas para arquivo; **alteração dos arquivos do assistente** (AGENTS.md, CLAUDE.md, README, `.agents/`, `.claude/`, `scripts/`, `templates/`, dependências) e dos seus originais em `projeto/referencias/` |
+| `scripts/fab_ro.py` e scripts do projeto | **qualquer ferramenta** | `fab` de escrita (`rm`, `mv`, `import`, `run`, `set`, `mkdir`, `api` não-GET…), cópias (`export`, `cp`, `-o`), `auth login/logout` direto (o login passa por `scripts/entrar.py`), workspaces fora do projeto e conta logada diferente da registrada |
+| Adaptador de hook (`scripts/adaptadores/`) | ferramentas com adaptador (hoje: Claude Code) | Tudo acima, mais: arquivos **fora da pasta do clone** (inclusive memória e rascunhos do assistente de outros projetos) e pastas sensíveis (`~/.config/fab`, `~/.ssh`, `~/.azure`, `.env`); leituras de itens redirecionadas para arquivo; **alteração dos arquivos do assistente** (AGENTS.md, CLAUDE.md, README, `.agents/`, `.claude/`, `scripts/`, `templates/`, dependências) e dos seus originais em `projeto/referencias/` |
 
-O login no Fabric é sempre feito por você; o assistente nunca vê senhas. O token fica no cache
-local do `fab` (fora da pasta do projeto, protegido pela guarda).
+O assistente abre a janela de login (`scripts/entrar.py`), mas quem escolhe a conta e entra é você;
+ele nunca vê senhas e só faz logout com a sua permissão. O token fica no cache local do `fab`
+(fora da pasta do projeto, protegido pela guarda).
 
 > **Limites.** Para comandos de terminal a guarda analisa o texto do comando: ela evita erros e
 > desvios do modelo, mas não é um isolamento de sistema operacional. Em ferramentas **sem
@@ -111,7 +129,7 @@ Remove-Item .agents\MANUTENCAO                 # volta a proteger
 ```
 As demais regras (pasta, somente leitura no Fabric, sem cópias) continuam valendo.
 
-## 6. Ferramentas de IA (agnóstico)
+## 5. Ferramentas de IA (agnóstico)
 
 | Peça | Fonte única (agnóstica) | Claude Code |
 |---|---|---|
@@ -131,35 +149,73 @@ As demais regras (pasta, somente leitura no Fabric, sem cópias) continuam valen
 3. Guarda: se ela tiver hooks antes da execução de ferramentas, crie
    `scripts/adaptadores/<ferramenta>.py` no molde de `claude_code.py` (ou chame direto
    `python scripts/guarda.py comando|arquivo ...`, que responde com código 2 para bloquear).
-   Sem hooks, vale só a primeira camada (seção 5).
+   Sem hooks, vale só a primeira camada (seção 4).
 4. MCP: configure o `microsoft-learn` no formato da ferramenta.
 5. Inclua a ferramenta na tabela acima.
 
-## 7. Atualizar o assistente
+## 6. Versões e atualizações
 
-```powershell
-git pull        # novas skills, scripts e ajustes do template
-uv sync         # se o pyproject.toml mudou
-```
-A pasta `projeto/` não é afetada.
+Quem usa o app recebe só **versões publicadas** (tags `vX.Y.Z`), nunca o que acabou de entrar na `main`.
 
-## 8. Problemas comuns
+- **Aviso automático:** ao abrir, o app verifica se há versão nova e mostra as novidades
+  (do `CHANGELOG.md`) com o botão **Atualizar agora**.
+- **Manual:** Configurações → **Atualizar para a mais nova**.
+- **Voltar atrás:** Configurações → escolha a versão → **Instalar versão escolhida**
+  (ou `$env:FDH_VERSAO = 'v1.0.0'` antes do comando de instalação).
+- **Projetos:** cada um recebe a versão instalada ao ser aberto pelo app. A pasta `projeto/`
+  nunca é tocada; uma pasta com alterações locais no assistente não é atualizada (o app avisa).
+- Clone manual (sem app): `git pull` e `uv sync`.
+
+### Desenvolvimento (testar sem afetar o uso real)
+| | Desenvolvimento | Uso real (produção) |
+|---|---|---|
+| Código | seu clone de trabalho, em branches | `%LOCALAPPDATA%\Programs\fabric-ai-doc-helper` (instalador), branch `estavel` = última tag |
+| Abrir o app | atalho **Fabric Doc Helper (dev)** (criado por `powershell -ExecutionPolicy Bypass -File instalar.ps1` dentro do clone) ou `uv run python app/main.py` | atalho **Fabric Doc Helper** |
+| Lista de projetos | `%LOCALAPPDATA%\fabric-ai-doc-helper\dev\app.json` | `%LOCALAPPDATA%\fabric-ai-doc-helper\app.json` |
+| Pasta padrão | `C:\Fabric-teste` | `C:\Fabric` |
+| Projetos recebem | o **branch atual** do clone (só o que está commitado) | a versão instalada |
+
+O app em desenvolvimento mostra a faixa laranja **DESENVOLVIMENTO** e "(dev)" no título.
+O Fabric é só leitura, então testar contra um workspace real não altera nada nele; se o teste
+trocar a conta logada, o projeto real detecta e pede para refazer o login.
+
+Ciclo: branch → commit → testar no app (dev) com um projeto em `C:\Fabric-teste` → PR → merge → publicar.
+
+### Publicar uma versão
+1. Na `main` atualizada, acrescente a seção da versão no topo do `CHANGELOG.md` e faça o commit.
+2. Crie e envie a tag:
+   ```powershell
+   git tag -a v1.1.0 -m "v1.1.0"
+   git push origin v1.1.0
+   ```
+3. Pronto: os apps instalados avisam a nova versão na próxima abertura.
+
+Proteja a `main` no GitHub (Settings → Branches → *Require a pull request before merging*) para
+que tudo passe por PR.
+
+## 7. Problemas comuns
 
 | Sintoma | Solução |
 |---|---|
 | `CERTIFICATE_VERIFY_FAILED` / `SSLError` no `fab` | Antivírus/proxy com inspeção HTTPS. Adicione exceções (ex.: Avast → Web Shield → Exceções) para `https://login.microsoftonline.com/*`, `https://api.fabric.microsoft.com/*`, `https://*.dfs.fabric.microsoft.com/*` |
 | MCP `microsoft-learn` não conecta | Mesma causa: exceção para `https://learn.microsoft.com/*` e reconecte o MCP na ferramenta (Claude Code: `/mcp`) |
-| `Logged In: False` | `uv run fab auth login` |
-| Trocou de cliente na mesma máquina | `uv run fab auth logout` e `uv run fab auth login` com a conta do novo cliente (o login do `fab` é por usuário do Windows, não por pasta) |
+| `Logged In: False` | Login ausente ou expirado: o assistente abre o login (`uv run python scripts/entrar.py`) |
+| Trocou de cliente na mesma máquina | Nada a fazer: ao abrir o projeto, o assistente detecta a conta diferente e, com sua permissão, refaz o login |
+| Botão do VS Code/Claude Desktop cinza no app | Ferramenta não instalada (o app procura no Menu Iniciar e no registro). Instale e reabra o app |
+| VS Code sem a extensão Claude Code | App → Configurações → **Instalar extensão Claude Code** |
+| App não abre pelo atalho | Veja `%LOCALAPPDATA%\fabric-ai-doc-helper\app.log` ou rode `uv run python app/main.py --navegador` na pasta de instalação |
 | Sumário do Word desatualizado | `powershell -ExecutionPolicy Bypass -File scripts/finalizar_docx.ps1 projeto/docs/<arquivo>.docx` ou, no Word, botão direito no sumário → Atualizar campo |
 | Consumo de capacidade (CU) | Não é acessível pelo Fabric CLI; depende do app *Microsoft Fabric Capacity Metrics* e de permissão na capacidade |
 
-## 9. Estrutura do repositório
+## 8. Estrutura do repositório
 
 ```
 AGENTS.md                   instruções para qualquer assistente (fonte única)
 CLAUDE.md                   importa o AGENTS.md + notas do Claude Code
 README.md                   este guia
+instalar.ps1                instalador do app (Git, uv, ambiente e atalhos)
+CHANGELOG.md                novidades de cada versão publicada (mostradas pelo app ao atualizar)
+app/                        app Fabric Doc Helper: main.py (interface) e servicos.py (projetos, ferramentas)
 pyproject.toml / uv.lock    dependências (Python 3.12, ms-fabric-cli…)
 .mcp.json                   MCP microsoft-learn para o Claude Code
 .agents/
@@ -175,6 +231,8 @@ scripts/
   guarda.py                 regras da guarda (pasta, fab somente leitura, sem cópias, arquivos protegidos)
   fab_ro.py                 executa o fab só com comandos de leitura permitidos (qualquer ferramenta)
   adaptadores/claude_code.py  hook do Claude Code → guarda.py
+  adaptadores/claude_code_inicio.py  hook de início: prepara o ambiente e confere a conta
+  entrar.py                 login pelo navegador (opção já escolhida) + conferência da conta
   sincronizar_skills.py     copia .agents/skills para as pastas de cada ferramenta
   verificar_login.py        confere se a conta logada no fab é a do projeto
   inventario.py             inventário de metadados do workspace (sem copiar itens)

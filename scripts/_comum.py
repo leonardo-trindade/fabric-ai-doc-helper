@@ -90,13 +90,13 @@ def checar_login(cfg: dict) -> dict:
     """Interrompe se não houver login ou se a conta/tenant não for a registrada no projeto."""
     s = sessao_fab()
     if not s["logado"]:
-        sys.exit("Sem login no Fabric. Peça ao usuário: `uv run fab auth login` (conta do cliente).")
+        sys.exit("Sem login no Fabric. Avise o usuário e rode `uv run python scripts/entrar.py` (login pelo navegador).")
     conta_esp = (cfg.get("conta_fabric") or "").strip().lower()
     tenant_esp = (cfg.get("tenant_id") or "").strip().lower()
     if (conta_esp and (s["conta"] or "").lower() != conta_esp) or \
        (tenant_esp and (s["tenant_id"] or "").lower() != tenant_esp):
         sys.exit(f"LOGIN DIFERENTE DO PROJETO: ativo = {s['conta']} (tenant {s['tenant_id']}); "
                  f"projeto espera {cfg.get('conta_fabric') or '?'} (tenant {cfg.get('tenant_id') or '?'}). "
-                 "Confirme com o usuário; se for outra conta, rode `uv run fab auth logout` e peça "
-                 "ao usuário `uv run fab auth login`.")
+                 "Mostre as duas contas ao usuário e peça permissão para trocar; se ele aceitar, rode "
+                 "`uv run python scripts/entrar.py --trocar`.")
     return {"tenant_id": s["tenant_id"], "conta": s["conta"]}
