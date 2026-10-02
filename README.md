@@ -102,11 +102,17 @@ As regras ficam em `scripts/guarda.py` (independente de ferramenta) e são aplic
 | Camada | Onde vale | O que bloqueia |
 |---|---|---|
 | `scripts/fab_ro.py` e scripts do projeto | **qualquer ferramenta** | `fab` de escrita (`rm`, `mv`, `import`, `run`, `set`, `mkdir`, `api` não-GET…), cópias (`export`, `cp`, `-o`), `auth login/logout` direto (o login passa por `scripts/entrar.py`), workspaces fora do projeto e conta logada diferente da registrada |
-| Adaptador de hook (`scripts/adaptadores/`) | ferramentas com adaptador (hoje: Claude Code) | Tudo acima, mais: arquivos **fora da pasta do clone** (inclusive memória e rascunhos do assistente de outros projetos) e pastas sensíveis (`~/.config/fab`, `~/.ssh`, `~/.azure`, `.env`); leituras de itens redirecionadas para arquivo; **alteração dos arquivos do assistente** (AGENTS.md, CLAUDE.md, README, `.agents/`, `.claude/`, `scripts/`, `templates/`, dependências) e dos seus originais em `projeto/referencias/` |
+| Adaptador de hook (`scripts/adaptadores/`) | ferramentas com adaptador (hoje: Claude Code) | Tudo acima, mais: arquivos **fora da pasta do clone** (inclusive memória e rascunhos do assistente de outros projetos) e pastas sensíveis (`~/.config/fab`, `~/.ssh`, `~/.azure`, `.env`); leituras de itens redirecionadas para arquivo; **alteração dos arquivos do assistente** (AGENTS.md, CLAUDE.md, README, `.agents/`, `.claude/`, `scripts/`, `templates/`, dependências) e dos seus originais em `projeto/referencias/`; **Git de escrita** (commit, push, tag, remote, config…) e **qualquer comando `gh`**, também dentro de `cmd /c`, `powershell -Command` e `bash -c` |
 
 O assistente abre a janela de login (`scripts/entrar.py`), mas quem escolhe a conta e entra é você;
 ele nunca vê senhas e só faz logout com a sua permissão. O token fica no cache local do `fab`
 (fora da pasta do projeto, protegido pela guarda).
+
+**Por que bloquear Git e GitHub?** O assistente lê material do cliente (notebooks, pipelines,
+documentos). Um texto malicioso ali poderia tentar fazê-lo usar as credenciais do GitHub desta
+máquina para alterar o repositório ou publicar uma versão. Nos projetos ele nunca precisa disso;
+o Git fica só para leitura e o `gh` bloqueado. Mantenha o modo manutenção desligado fora do
+desenvolvimento: é ele que libera esses comandos.
 
 > **Limites.** Para comandos de terminal a guarda analisa o texto do comando: ela evita erros e
 > desvios do modelo, mas não é um isolamento de sistema operacional. Em ferramentas **sem
@@ -120,8 +126,9 @@ ele nunca vê senhas e só faz logout com a sua permissão. O token fica no cach
 
 ### Modo manutenção (evoluir o próprio assistente)
 
-Para permitir que o assistente altere skills, scripts, template ou instruções, crie **você mesmo**
-o arquivo de manutenção e apague-o ao terminar (o assistente não consegue criá-lo nem apagá-lo):
+Para permitir que o assistente altere skills, scripts, template ou instruções (e use Git de
+escrita e o `gh` para branches, PRs e versões), crie **você mesmo** o arquivo de manutenção e
+apague-o ao terminar (o assistente não consegue criá-lo nem apagá-lo):
 
 ```powershell
 New-Item -ItemType File .agents\MANUTENCAO     # libera alterações no assistente

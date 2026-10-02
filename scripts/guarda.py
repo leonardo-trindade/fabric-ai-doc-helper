@@ -8,6 +8,8 @@ Bloqueia, antes da execução:
   4. Alteração dos arquivos do assistente (AGENTS.md, CLAUDE.md, README, .agents/, .claude/,
      scripts/, templates/, dependências) e dos arquivos de referência do usuário
      (projeto/referencias/, exceto a pasta gerada _texto/). Leitura é livre.
+  5. Git de escrita (commit, push, tag, remote, config…) e qualquer uso do GitHub CLI (`gh`),
+     inclusive dentro de `cmd /c`, `powershell -Command`, `bash -c`. Leitura do Git é livre.
 
 Quem usa:
   - scripts/fab_ro.py e scripts/_comum.py: validam todo comando `fab` (vale em qualquer ferramenta).
@@ -20,7 +22,7 @@ Quem usa:
     Sai com código 2 e o motivo em stderr para bloquear; 0 para liberar.
 
 Modo manutenção (para evoluir o próprio repositório): o usuário cria MANUALMENTE o arquivo
-vazio `.agents/MANUTENCAO`. Enquanto ele existir, a regra 4 fica desligada (as demais
+vazio `.agents/MANUTENCAO`. Enquanto ele existir, as regras 4 e 5 ficam desligadas (as demais
 continuam). O próprio arquivo de manutenção nunca pode ser criado/alterado pelo assistente.
 
 Limite conhecido: para comandos de terminal a verificação é textual. Protege contra erro e
@@ -204,7 +206,82 @@ def verificar_comando(cmd: str, *, cwd: Path | str | None = None,
             raise Bloqueio(f"comando referencia caminho fora da pasta do projeto: {tok}")
     for args in fab_invocations(cmd):
         verificar_fab(args, root)
+    if not em_manutencao(root):
+        verificar_git_gh(cmd)
     _protecao_shell(cmd, cwd, root, sempre=em_manutencao(root))
+
+
+# ---------------------------------------------------------------- git / gh
+# Fora do modo manutenção o assistente só LÊ o Git e não usa o GitHub CLI: num projeto ele nunca
+# precisa commitar, publicar ou mexer no GitHub, e bloquear isso impede que instruções escondidas
+# em material do cliente (prompt injection) usem as credenciais da máquina contra o repositório.
+# Lista do que é permitido (o resto é bloqueado): subcomandos de leitura e, nos que também
+# escrevem, só as formas de consulta.
+GIT_LEITURA = {"status", "log", "diff", "show", "blame", "rev-parse", "describe", "ls-files",
+               "grep", "shortlog", "cat-file", "help", "version", "--version", "-h", "--help"}
+GIT_OPCOES_COM_VALOR = {"-c", "-C", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
+_BRANCH_LISTAR = {"-a", "-r", "-v", "-vv", "--all", "--remotes", "--list", "--show-current", "--verbose"}
+_TAG_ESCRITA = {"-d", "--delete", "-a", "--annotate", "-s", "--sign", "-f", "--force", "-m", "-F", "-u"}
+_CONFIG_LER = {"--get", "--get-all", "--get-regexp", "--list", "-l"}
+_CONFIG_ESCREVER = {"--add", "--unset", "--unset-all", "--replace-all", "--rename-section",
+                    "--remove-section", "-e", "--edit"}
+
+
+def _git_consulta(sub: str, resto: list[str]) -> bool:
+    """Formas só de consulta de subcomandos que também escrevem (branch, tag, remote, config)."""
+    if sub == "branch":
+        return all(a in _BRANCH_LISTAR for a in resto)
+    if sub == "tag":
+        return not resto or (resto[0] in {"-l", "--list", "-n"} and not set(resto) & _TAG_ESCRITA)
+    if sub == "remote":
+        return resto in ([], ["-v"], ["--verbose"]) or (bool(resto) and resto[0] in {"show", "get-url"})
+    if sub == "config":
+        return bool(set(resto) & _CONFIG_LER) and not set(resto) & _CONFIG_ESCREVER
+    return False
+
+
+def _comandos(cmd: str) -> list[list[str]]:
+    """Tokens de cada comando simples (sem atribuições VAR=x nem `&`/`call` do PowerShell/cmd)."""
+    out = []
+    for seg in segmentos(cmd):
+        try:
+            toks = shlex.split(seg, posix=True)
+        except ValueError:
+            toks = seg.split()
+        i = 0
+        while i < len(toks) and (re.match(r"^\w+=", toks[i]) or toks[i].lower() in {"&", "call"}):
+            i += 1
+        if i < len(toks):
+            out.append(toks[i:])
+    return out
+
+
+SHELLS = {"cmd": {"/c", "/k"}, "powershell": {"-command", "-c"}, "pwsh": {"-command", "-c"},
+          "bash": {"-c"}, "sh": {"-c"}}
+
+
+def verificar_git_gh(cmd: str, nivel: int = 0) -> None:
+    for toks in _comandos(cmd):
+        exe = os.path.basename(toks[0].replace("\\", "/")).lower().removesuffix(".exe")
+        if exe in SHELLS and nivel < 3:  # cmd /c "…", powershell -Command "…", bash -c "…": verifica o de dentro
+            for j, t in enumerate(toks[1:], 1):
+                if t.lower() in SHELLS[exe]:
+                    verificar_git_gh(" ".join(toks[j + 1:]), nivel + 1)
+                    break
+            continue
+        if exe == "gh":
+            raise Bloqueio("o GitHub CLI (`gh`) não é usado pelo assistente nos projetos. "
+                           "Para evoluir o próprio assistente, o usuário ativa o modo manutenção.")
+        if exe != "git":
+            continue
+        args, i = toks[1:], 0
+        while i < len(args) and args[i].startswith("-") and args[i] not in {"--version", "-h", "--help"}:
+            i += 2 if args[i] in GIT_OPCOES_COM_VALOR else 1  # opções globais: -c x=y, -C dir, --no-pager…
+        sub, resto = (args[i].lower(), args[i + 1:]) if i < len(args) else ("", [])
+        if sub in GIT_LEITURA or _git_consulta(sub, resto):
+            continue
+        raise Bloqueio(f"`git {sub or '(sem subcomando)'}` altera o repositório; o assistente só lê o Git "
+                       "nos projetos. Para evoluir o próprio assistente, o usuário ativa o modo manutenção.")
 
 
 def _protecao_shell(cmd: str, cwd: Path, root: Path, sempre: bool) -> None:
