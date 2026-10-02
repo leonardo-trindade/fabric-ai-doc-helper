@@ -1,7 +1,20 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "enabledMcpjsonServers": ["microsoft-learn"],
+  "autoMemoryEnabled": false,
+  "plansDirectory": "projeto/planos",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --quiet python \"$CLAUDE_PROJECT_DIR/scripts/adaptadores/claude_code_inicio.py\"",
+            "timeout": 300
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Read|Edit|Write|MultiEdit|NotebookEdit|Glob|Grep|Bash|PowerShell",

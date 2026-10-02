@@ -59,8 +59,8 @@ SAFE_DEVICES = {"/dev/null", "nul", "$null", "/dev/stdout", "/dev/stderr"}
 
 # Arquivos/pastas somente leitura para o assistente (relativos à raiz do projeto).
 PROTEGIDOS = ["AGENTS.md", "CLAUDE.md", "README.md", "pyproject.toml", "uv.lock", ".python-version",
-              ".mcp.json", ".gitignore", ".agents", ".claude", "scripts", "templates",
-              "projeto/referencias"]
+              ".mcp.json", ".gitignore", ".agents", ".claude", "scripts", "templates", "app",
+              "instalar.ps1", "projeto/referencias"]
 LIBERADOS_DENTRO = ["projeto/referencias/_texto"]  # gerado por scripts/ler_referencia.py
 SEMPRE_PROTEGIDOS = [str(MANUTENCAO)]  # nem em modo manutenção
 VERBOS_ESCRITA = re.compile(
@@ -240,10 +240,27 @@ def target_workspaces(root: Path = RAIZ) -> set[str] | None:
     return names
 
 
+def segmentos(cmd: str) -> list[str]:
+    """Divide um comando em `;`, `|`, `&&`, `||` e quebras de linha, ignorando os que estão entre aspas."""
+    segs, atual, aspa = [], [], ""
+    for c in cmd:
+        if aspa:
+            aspa = "" if c == aspa else aspa
+        elif c in "\"'":
+            aspa = c
+        elif c in ";|\n&":
+            segs.append("".join(atual))
+            atual = []
+            continue
+        atual.append(c)
+    segs.append("".join(atual))
+    return [s for s in segs if s.strip()]
+
+
 def fab_invocations(cmd: str) -> list[list[str]]:
     """Argumentos de cada chamada a `fab` (direta ou via scripts/fab_ro.py) num comando."""
     out = []
-    for seg in re.split(r"&&|\|\||[;|\n]", cmd):
+    for seg in segmentos(cmd):
         try:
             toks = shlex.split(seg, posix=True)
         except ValueError:
@@ -275,7 +292,7 @@ def verificar_fab(args: list[str], root: Path = RAIZ) -> None:
     first = words[0].lower() if words else args[0].lower()
     second = words[1].lower() if len(words) > 1 else ""
     if first == "auth" and second == "login" and not any(a in {"--help", "-h"} for a in args):
-        raise Bloqueio("o login no Fabric é manual: peça ao usuário para rodar `uv run fab auth login` no terminal dele.")
+        raise Bloqueio("use `uv run python scripts/entrar.py` (login pelo navegador + conferência da conta do projeto).")
     if (first,) in FAB_FREE or first in {"--version", "--help", "-h"}:
         return
     if first in FAB_WRITE or (first, second) in FAB_WRITE_PAIRS:

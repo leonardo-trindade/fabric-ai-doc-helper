@@ -10,25 +10,38 @@ coletado aqui e salvo em `projeto/projeto.yaml` (pasta ignorada pelo Git). O usu
 precisa editar esse arquivo à mão.
 
 ## Passo 1 — Conta do Fabric (SEMPRE antes de qualquer acesso ao Fabric)
-O login do `fab` é por usuário do Windows, não por pasta: a máquina pode estar logada no
-cliente anterior. Rode:
+O login do `fab` é um só para o usuário do Windows (não é por pasta): entre uma conversa e outra
+o usuário pode ter entrado na conta de outro cliente. Por isso a conta é registrada no projeto e
+conferida em toda conversa (hook de início, quando houver) e em todo acesso ao Fabric (scripts).
+Se o hook de início já trouxe o resultado, use-o; senão rode:
 ```
 uv run python scripts/verificar_login.py
 ```
 | Saída | O que fazer |
 |---|---|
-| `SEM LOGIN` (código 3) | Peça ao usuário para rodar **no terminal dele**: `uv run fab auth login`. Aguarde e verifique de novo. |
-| Mostra uma conta, projeto sem conta registrada (código 5) | Mostre conta e tenant e **pergunte**: "Esta é a conta do cliente <cliente>?" |
-| `CONTA DIFERENTE` (código 4) | Mostre as duas contas e **pergunte** qual é a correta. |
 | `OK` (código 0) | Informe a conta em uma linha e siga. |
+| Projeto sem conta registrada (código 5) | Mostre conta e tenant e **pergunte**: "Esta é a conta do cliente <cliente>?" |
+| `CONTA DIFERENTE` (código 4) | Mostre as duas contas e **peça permissão** para sair da conta atual e entrar na do projeto. |
+| `SEM LOGIN` (código 3) | Avise que a janela de login da Microsoft vai abrir e rode `uv run python scripts/entrar.py`. |
 
-- Usuário confirmou a conta: `uv run python scripts/verificar_login.py --registrar`
-  (grava `conta_fabric` e `tenant_id` no projeto.yaml; se o projeto.yaml ainda não existe,
-  registre logo após criá-lo no Passo 2).
-- Usuário disse que NÃO é a conta certa: rode `uv run python scripts/fab_ro.py auth logout`, peça que ele rode
-  `uv run fab auth login` com a conta do cliente, aguarde a confirmação, verifique de novo e
-  então registre.
-- Nunca rode `fab auth login` você mesmo (a guarda bloqueia) e nunca peça senha/token.
+- **Confirmou a conta (código 5):** `uv run python scripts/verificar_login.py --registrar`
+  (grava `conta_fabric` e `tenant_id`; se o projeto.yaml ainda não existe, registre logo após
+  criá-lo no Passo 2). Dali em diante essa é a conta do projeto.
+- **Não é a conta certa / conta diferente:** use a ferramenta de perguntas para pedir permissão
+  ("Posso sair da conta X e abrir o login para você entrar com a conta do projeto?").
+  Só com "sim":
+  - código 4 (projeto já tem conta): `uv run python scripts/entrar.py --trocar`
+    (o login já abre no tenant registrado);
+  - código 5 (definindo a conta agora): `uv run python scripts/entrar.py --trocar --outro-tenant`,
+    confirme a nova conta com o usuário e registre com `--registrar`.
+  Com "não": não acesse o Fabric; explique que o projeto fica parado até a conta certa.
+- `entrar.py` abre o login pelo navegador já na opção "Interactive with a web browser" e fica
+  aguardando até o usuário concluir (use tempo limite de vários minutos). No fim mostra a
+  conferência da conta (mesmos códigos acima).
+- Usuário quer **mudar a conta do projeto** de propósito: com permissão,
+  `entrar.py --trocar --outro-tenant` e depois `verificar_login.py --registrar`.
+- Nunca rode `fab auth login`/`logout` direto, nunca faça logout sem permissão explícita e
+  nunca peça senha/token.
 
 ## Passo 2 — Entrevista (só se projeto/projeto.yaml não existir)
 Use a ferramenta de perguntas quando disponível; senão, um único bloco numerado em texto.
@@ -49,8 +62,15 @@ Verificações:
   (levantamento | mapeamento | outro) e, em planilhas, quais abas considerar. Pasta vazia:
   informe que são opcionais e siga.
 
-Se projeto.yaml JÁ existe: não entreviste. Leia-o, faça o Passo 1 e confirme em uma linha
-("Continuando: <cliente> · <projeto> · workspace <alvo> · conta <conta>. Algo mudou?").
+**Projeto criado pelo app** (projeto.yaml com cliente/projeto/workspace/autor preenchidos e
+`conta_fabric` vazia): não repita as obrigatórias. Confirme o workspace com `exists`, faça o
+Passo 1 (registrar a conta) e ofereça as opcionais em uma única pergunta (aceite "pular").
+
+Se projeto.yaml JÁ existe e a conta está registrada: não entreviste. Leia-o, faça o Passo 1 e
+confirme em uma linha ("Continuando: <cliente> · <projeto> · workspace <alvo> · conta <conta>. Algo mudou?").
+
+**Outro cliente na mesma pasta:** se pedirem para iniciar um cliente diferente do registrado,
+recuse: cada pasta é de um único projeto. Oriente criar um novo projeto no app (ou um novo clone).
 
 ## Estrutura criada
 ```

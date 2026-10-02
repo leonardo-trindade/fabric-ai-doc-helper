@@ -8,10 +8,12 @@ Este arquivo vale para qualquer assistente (Claude Code, Codex, Copilot, Cursor,
 Instruções específicas de uma ferramenta ficam no arquivo dela (ex.: `CLAUDE.md`).
 
 ## Primeiros passos de toda conversa
-1. **Conta do Fabric:** `uv run python scripts/verificar_login.py`. A máquina pode estar logada
-   em outro cliente. Se não retornar `OK`, mostre a conta ativa e confirme com o usuário; se não
-   for a correta, rode `uv run python scripts/fab_ro.py auth logout` e peça que ele rode
-   `uv run fab auth login` (detalhes na skill `iniciar-projeto`, Passo 1). Não acesse o Fabric antes disso.
+1. **Conta do Fabric:** o login do `fab` é um só para a máquina, e o usuário pode ter entrado em
+   outra conta desde a última conversa. Se a ferramenta já trouxe o resultado do hook de início
+   ("[Início de sessão — fabric-ai-doc-helper]"), siga a ação indicada; senão rode
+   `uv run python scripts/verificar_login.py`. Conta confirmada é registrada no projeto
+   (`--registrar`); conta errada → peça permissão e rode `uv run python scripts/entrar.py --trocar`
+   (detalhes na skill `iniciar-projeto`, Passo 1). Não acesse o Fabric antes disso.
 2. Se `projeto/projeto.yaml` **não existe**: rode a skill `iniciar-projeto` (entrevista).
    Se existe: confirme em uma linha ("Continuando: <cliente> · <projeto> · workspace <alvo> ·
    conta <conta>. Algo mudou?"). Não entreviste de novo.
@@ -42,8 +44,15 @@ As skills ficam em **`.agents/skills/<nome>/SKILL.md`** (formato aberto Agent Sk
   `workspaces_leitura_extra` do projeto.yaml).
 - **Somente a pasta do repositório.** Não leia nem grave fora dela (exceto a área temporária
   da própria ferramenta). Não leia `~/.config/fab`, `~/.ssh`, `~/.azure` nem `.env`.
-- **Login é manual.** Nunca rode `fab auth login` pelo usuário nem peça senhas/tokens;
-  peça que ele execute `uv run fab auth login`.
+- **Login só pelo navegador, conta só com permissão.** Login: `uv run python scripts/entrar.py`
+  (abre a janela da Microsoft; o usuário escolhe a conta). Nunca faça logout ou troque de conta
+  sem permissão explícita do usuário (`entrar.py --trocar`). Nunca rode `fab auth login/logout`
+  direto e nunca peça senhas/tokens.
+- **Um projeto por pasta.** Cada pasta é de um único cliente/projeto. Se pedirem para iniciar
+  outro cliente numa pasta que já tem `projeto/projeto.yaml` de outro cliente, recuse e oriente
+  criar um novo projeto (no app Fabric Doc Helper ou com um novo clone).
+- **Contexto só no projeto.** O que for aprendido sobre o cliente vai para
+  `projeto/analise/notas.md`, nunca para a memória da ferramenta.
 - **Segredos:** nunca exiba, grave ou copie credenciais, tokens ou senhas encontrados.
 - **Template fixo:** visual de `templates/template-bluer.docx` e estrutura de
   `templates/estrutura-documento.yaml`. Não altere o template nem a ordem das seções.

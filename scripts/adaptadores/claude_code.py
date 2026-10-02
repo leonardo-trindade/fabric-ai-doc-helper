@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -28,8 +29,11 @@ except Exception as e:  # noqa: BLE001
 FILE_TOOLS = {"Read", "Edit", "Write", "MultiEdit", "NotebookEdit", "Glob", "Grep"}
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 SHELL_TOOLS = {"Bash", "PowerShell"}
-# Áreas de trabalho do próprio Claude Code: rascunhos (scratchpad), memória e resultados de ferramentas.
-RAIZES_CLAUDE = [Path(tempfile.gettempdir()) / "claude", Path.home() / ".claude" / "projects"]
+# Áreas de trabalho do próprio Claude Code (rascunhos, memória, resultados de ferramentas), SOMENTE
+# as desta pasta: o Claude Code nomeia a área de cada projeto pelo caminho com os caracteres não
+# alfanuméricos trocados por "-". As áreas de outros projetos (outros clientes) ficam bloqueadas.
+SLUG = re.sub(r"[^A-Za-z0-9]", "-", str(RAIZ))
+RAIZES_CLAUDE = [Path(tempfile.gettempdir()) / "claude" / SLUG, Path.home() / ".claude" / "projects" / SLUG]
 
 
 def main() -> None:

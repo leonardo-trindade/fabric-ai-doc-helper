@@ -10,7 +10,7 @@ Uso (mesmos argumentos do `fab`):
     uv run python scripts/fab_ro.py auth status
 
 Códigos de saída: 2 = bloqueado pela guarda; demais = código do próprio `fab`.
-O login (`fab auth login`) é sempre feito pelo usuário, no terminal dele.
+Login: `uv run python scripts/entrar.py` (o usuário escolhe a conta no navegador).
 """
 from __future__ import annotations
 
