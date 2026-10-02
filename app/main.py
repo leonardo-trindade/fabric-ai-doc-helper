@@ -157,7 +157,7 @@ def dialogo_existente() -> None:
     ferr = {"v": "vscode" if f.tem_vscode else "claude"}
     with ui.dialog() as dlg, ui.card().classes("w-[560px] max-w-full"):
         ui.label("Adicionar pasta existente").classes("text-h6")
-        ui.label("Para projetos clonados manualmente antes do app.").classes("text-sm text-grey-7")
+        ui.label("Para uma pasta de projeto que não está na lista (outro computador, versão antiga…).").classes("text-sm text-grey-7")
         with ui.row().classes("w-full items-end no-wrap gap-2"):
             pasta = ui.input("Pasta do projeto").classes("flex-1")
 
@@ -211,16 +211,21 @@ def dialogo_config() -> None:
             ui.button("Instalar extensão Claude Code no VS Code", on_click=instalar).props("outline")
 
         ui.separator()
-        ui.label(f"Versão instalada: {s.versao_atual()}").classes("text-subtitle2")
+        ui.label(f"Versão em uso: {s.versao_atual()}").classes("text-subtitle2")
         if s.MODO_DEV:
-            ui.label(f"Modo desenvolvimento (branch {s.branch_origem() or '?'}). Os projetos de teste acompanham "
-                     "o branch atual deste clone; atualize com git.").classes("text-sm text-grey-7")
+            ui.label("Modo desenvolvimento: o app roda do código-fonte e os projetos de teste recebem o "
+                     "assistente direto da pasta de trabalho (inclusive o que não foi commitado).").classes("text-sm text-grey-7")
+        elif s.LEGADO:
+            ui.label("Instalação antiga (v1). Rode o instalador de novo para passar ao formato atual.").classes("text-sm text-orange-8")
         else:
             status = ui.label().classes("text-sm")
             versoes = ui.select([], label="Instalar outra versão (voltar atrás)").props("dense outlined").classes("w-full")
 
             async def carregar_versoes() -> None:
-                versoes.options = await run.io_bound(s.versoes_publicadas)
+                try:
+                    versoes.options = await run.io_bound(s.versoes_publicadas)
+                except Exception:  # noqa: BLE001
+                    status.text = "Não foi possível consultar as versões no GitHub agora."
                 versoes.update()
 
             async def instalar(tag: str | None) -> None:
@@ -310,6 +315,7 @@ def lista() -> None:
             ui.label("Crie um projeto para cada cliente/fase que for documentar.").classes("text-grey-7")
             ui.button("Novo projeto", icon="add", on_click=dialogo_novo)
         return
+    versao_app = s.versao_atual()
     por_cliente: dict[str, list[s.Projeto]] = {}
     for p in sorted(projetos, key=lambda p: (p.cliente.lower(), p.ultimo_acesso or ""), reverse=False):
         por_cliente.setdefault(p.cliente, []).append(p)
@@ -317,10 +323,10 @@ def lista() -> None:
         ui.label(cliente).classes("text-subtitle1 font-medium text-primary mt-4")
         with ui.grid().classes("w-full gap-3 grid-cols-1 md:grid-cols-2"):
             for p in itens:
-                cartao(p, f)
+                cartao(p, f, versao_app)
 
 
-def cartao(p: s.Projeto, f: s.Ferramentas) -> None:
+def cartao(p: s.Projeto, f: s.Ferramentas, versao_app: str) -> None:
     e = s.estado(p)
     with ui.card().classes("w-full"):
         with ui.row().classes("w-full items-start justify-between no-wrap"):
@@ -341,6 +347,9 @@ def cartao(p: s.Projeto, f: s.Ferramentas) -> None:
         with ui.column().classes("gap-0 text-sm"):
             ui.label(f"Workspace: {e.workspace or '—'}")
             ui.label(f"Conta: {e.conta or 'confirmada pelo assistente na 1ª conversa'}")
+            if e.versao_harness:
+                ui.label(f"Assistente: {e.versao_harness}" + ("" if e.versao_harness == versao_app
+                         else f" (recebe {versao_app} ao abrir)")).classes("text-grey-7")
             if p.ultimo_acesso:
                 ui.label(f"Último acesso: {p.ultimo_acesso}").classes("text-grey-7")
         with ui.row().classes("w-full items-center justify-between mt-2"):
@@ -368,8 +377,13 @@ async def pagina() -> None:
     if s.MODO_DEV:
         with ui.row().classes("w-full bg-orange-2 text-orange-10 px-6 py-2 items-center gap-2 no-wrap"):
             ui.icon("science")
-            ui.label(f"DESENVOLVIMENTO · branch {s.branch_origem() or '?'} · projetos e lista separados do uso "
+            ui.label(f"DESENVOLVIMENTO · código-fonte em {s.RAIZ} · projetos e lista separados do uso "
                      f"real (pasta padrão {s.PASTA_PADRAO})").classes("text-sm")
+    elif s.LEGADO:
+        with ui.row().classes("w-full bg-orange-2 text-orange-10 px-6 py-2 items-center gap-2 no-wrap"):
+            ui.icon("warning")
+            ui.label("Instalação antiga (v1). Rode o instalador de novo para passar ao formato atual "
+                     "(seus projetos e configurações são mantidos).").classes("text-sm")
     with ui.column().classes("w-full max-w-5xl mx-auto px-4 py-4"):
         ui.input(placeholder="Buscar por cliente, projeto ou pasta",
                  on_change=lambda ev: (FILTRO.update(texto=ev.value or ""), lista.refresh())
@@ -402,5 +416,7 @@ async def verificar_versao() -> None:
 
 
 if __name__ in {"__main__", "__mp_main__"}:
-    ui.run(title="Fabric Doc Helper" + (" (dev)" if s.MODO_DEV else ""), native=NATIVO, host="127.0.0.1",  # só este computador window_size=(1100, 780) if NATIVO else None,
+    ui.run(title="Fabric Doc Helper" + (" (dev)" if s.MODO_DEV else ""), native=NATIVO,
+           host="127.0.0.1",  # só este computador
+           window_size=(1100, 780) if NATIVO else None,
            reload=False, show=not NATIVO and "--sem-abrir" not in sys.argv, port=None if NATIVO else 8765, favicon="📄")

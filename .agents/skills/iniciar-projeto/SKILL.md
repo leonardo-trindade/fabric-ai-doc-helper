@@ -70,7 +70,7 @@ Se projeto.yaml JÁ existe e a conta está registrada: não entreviste. Leia-o, 
 confirme em uma linha ("Continuando: <cliente> · <projeto> · workspace <alvo> · conta <conta>. Algo mudou?").
 
 **Outro cliente na mesma pasta:** se pedirem para iniciar um cliente diferente do registrado,
-recuse: cada pasta é de um único projeto. Oriente criar um novo projeto no app (ou um novo clone).
+recuse: cada pasta é de um único projeto. Oriente criar um novo projeto no app Fabric Doc Helper.
 
 ## Estrutura criada
 ```

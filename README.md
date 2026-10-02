@@ -6,8 +6,13 @@ workspace do cliente em **modo somente leitura** (Fabric CLI), analisa a arquite
 pipelines, notebooks, Materialized Lake Views, orquestração) e gera um documento Word no
 **template padrão Bluer**, pronto para revisão humana.
 
-O repositório é **neutro**: não contém dados de cliente. Cada projeto usa um clone próprio,
-e tudo do cliente fica na pasta `projeto/`, que nunca vai para o Git.
+O repositório é **neutro**: não contém dados de cliente. São três coisas separadas:
+
+| | O que é | É repositório Git? |
+|---|---|---|
+| **Código-fonte** | este repositório: branches, PRs e versões publicadas (tags). Só para quem desenvolve. | Sim |
+| **App instalado** | uma versão publicada, baixada pelo instalador para `%LOCALAPPDATA%\Programs\fabric-ai-doc-helper\versoes\<versão>`. | Não |
+| **Pasta de projeto** | criada pelo app para cada cliente/fase: o assistente (instruções, skills, guarda, scripts, template) + `projeto/` com os dados do cliente. | Não, e não vai para o GitHub |
 
 ---
 
@@ -17,8 +22,9 @@ e tudo do cliente fica na pasta `projeto/`, que nunca vai para o Git.
 ```powershell
 irm https://raw.githubusercontent.com/leonardo-trindade/fabric-ai-doc-helper/main/instalar.ps1 | iex
 ```
-O instalador instala Git e uv se faltarem, prepara tudo e cria o atalho **Fabric Doc Helper**
-no Menu Iniciar e na Área de Trabalho. Não é preciso instalar Python nem o Fabric CLI.
+O instalador instala o uv se faltar, baixa a última versão publicada, prepara tudo e cria o
+atalho **Fabric Doc Helper** no Menu Iniciar e na Área de Trabalho. Não é preciso Git, Python
+nem o Fabric CLI.
 
 **2. Crie um projeto** no app (**Novo projeto**): cliente, projeto/fase, workspace do Fabric,
 autor, pasta e onde você vai conversar com o assistente: **VS Code** (com a extensão Claude Code)
@@ -47,18 +53,23 @@ permissão e refaz o login antes de continuar.
 - Projetos do mesmo cliente podem usar a mesma conta.
 - Evite pastas no OneDrive: os dados do cliente seriam sincronizados (o app avisa).
 
-### Sem o app (clone manual)
-```powershell
-git -c http.sslBackend=schannel clone https://github.com/leonardo-trindade/fabric-ai-doc-helper.git "C:\Fabric\<Cliente>-<Projeto>"
-cd "C:\Fabric\<Cliente>-<Projeto>"
-uv sync
-code .        # ou abra a pasta na aba Code do Claude Desktop
+### A pasta do projeto
 ```
-O assistente faz a entrevista completa (cliente, projeto, workspace, autor) e o mesmo fluxo de
-conta. Para listar a pasta no app depois: **Adicionar pasta existente**.
+C:\Fabric\<Cliente>-<Projeto>\
+  LEIA-ME.md                 o que é esta pasta
+  AGENTS.md, CLAUDE.md       instruções do assistente   ┐
+  .agents\ .claude\          skills, hooks e guarda      │ o "assistente": não edite,
+  scripts\ templates\        scripts e template Bluer    │ o app atualiza ao abrir
+  pyproject.toml, uv.lock    ambiente Python             ┘
+  .fabric-doc-helper.json    versão do assistente nesta pasta (controle do app)
+  .venv\                     ambiente Python instalado
+  projeto\                   SEUS DADOS: referências, inventário, análise, documentos
+```
+Ao abrir o projeto, o app atualiza o assistente para a versão instalada, sem tocar em `projeto\`.
+Se algum arquivo do assistente tiver sido editado à mão, o app não sobrescreve e avisa.
 
-> Abra o assistente **já na pasta do projeto**. Uma conversa iniciada em outra pasta (ou antes
-> do clone) não carrega as instruções, o hook de início nem a guarda.
+> Abra o assistente **já na pasta do projeto** (o botão **Abrir** faz isso). Uma conversa
+> iniciada em outra pasta não carrega as instruções, o hook de início nem a guarda.
 
 O que o assistente pode perguntar na entrevista (o app já preenche os obrigatórios):
 - **Obrigatório:** nome do cliente, nome do projeto, workspace do Fabric a documentar, autor.
@@ -162,43 +173,46 @@ As demais regras (pasta, somente leitura no Fabric, sem cópias) continuam valen
 
 ## 6. Versões e atualizações
 
-Quem usa o app recebe só **versões publicadas** (tags `vX.Y.Z`), nunca o que acabou de entrar na `main`.
+Quem usa o app recebe só **versões publicadas** (tags `vX.Y.Z`, a partir da v2.0.0), nunca o
+que acabou de entrar na `main`.
 
 - **Aviso automático:** ao abrir, o app verifica se há versão nova e mostra as novidades
   (do `CHANGELOG.md`) com o botão **Atualizar agora**.
 - **Manual:** Configurações → **Atualizar para a mais nova**.
 - **Voltar atrás:** Configurações → escolha a versão → **Instalar versão escolhida**
-  (ou `$env:FDH_VERSAO = 'v1.0.0'` antes do comando de instalação).
-- **Projetos:** cada um recebe a versão instalada ao ser aberto pelo app. A pasta `projeto/`
-  nunca é tocada; uma pasta com alterações locais no assistente não é atualizada (o app avisa).
-- Clone manual (sem app): `git pull` e `uv sync`.
+  (ou `$env:FDH_VERSAO = 'v2.0.0'` antes do comando de instalação). As 3 versões mais novas
+  ficam guardadas em `versoes\`, então voltar para uma delas é imediato.
+- **Projetos:** cada um recebe a versão em uso ao ser aberto pelo app. A pasta `projeto/`
+  nunca é tocada; uma pasta com o assistente editado à mão não é atualizada (o app avisa).
+- Depois de atualizar, feche e abra o app pelo atalho (ele passa a apontar para a versão nova).
 
 ### Desenvolvimento (testar sem afetar o uso real)
 | | Desenvolvimento | Uso real (produção) |
 |---|---|---|
-| Código | seu clone de trabalho, em branches | `%LOCALAPPDATA%\Programs\fabric-ai-doc-helper` (instalador), branch `estavel` = última tag |
+| Código | o código-fonte (clone deste repositório), em branches | `%LOCALAPPDATA%\Programs\fabric-ai-doc-helper\versoes\<versão>` (sem Git) |
 | Abrir o app | atalho **Fabric Doc Helper (dev)** (criado por `powershell -ExecutionPolicy Bypass -File instalar.ps1` dentro do clone) ou `uv run python app/main.py` | atalho **Fabric Doc Helper** |
 | Lista de projetos | `%LOCALAPPDATA%\fabric-ai-doc-helper\dev\app.json` | `%LOCALAPPDATA%\fabric-ai-doc-helper\app.json` |
 | Pasta padrão | `C:\Fabric-teste` | `C:\Fabric` |
-| Projetos recebem | o **branch atual** do clone (só o que está commitado) | a versão instalada |
+| Projetos recebem | o assistente da **árvore de trabalho** (inclusive o que não foi commitado; nunca o `.agents\MANUTENCAO`) | a versão instalada |
 
 O app em desenvolvimento mostra a faixa laranja **DESENVOLVIMENTO** e "(dev)" no título.
 O Fabric é só leitura, então testar contra um workspace real não altera nada nele; se o teste
 trocar a conta logada, o projeto real detecta e pede para refazer o login.
 
-Ciclo: branch → commit → testar no app (dev) com um projeto em `C:\Fabric-teste` → PR → merge → publicar.
+Ciclo: branch → alterar → testar no app (dev) com um projeto em `C:\Fabric-teste` → PR → merge → publicar.
 
 ### Publicar uma versão
-1. Na `main` atualizada, acrescente a seção da versão no topo do `CHANGELOG.md` e faça o commit.
-2. Crie e envie a tag:
+1. Num branch, acrescente a seção da versão no topo do `CHANGELOG.md` e faça o merge por PR
+   (a `main` é protegida: só aceita PR).
+2. Na `main` atualizada, crie e envie a tag:
    ```powershell
-   git tag -a v1.1.0 -m "v1.1.0"
-   git push origin v1.1.0
+   git switch main
+   git pull
+   git tag -a v2.1.0 -m "v2.1.0"
+   git push origin v2.1.0
    ```
-3. Pronto: os apps instalados avisam a nova versão na próxima abertura.
-
-Proteja a `main` no GitHub (Settings → Branches → *Require a pull request before merging*) para
-que tudo passe por PR.
+3. Pronto: os apps instalados avisam a nova versão na próxima abertura. Tags `v*` são
+   protegidas: depois de publicadas não podem ser apagadas nem movidas (correção = nova versão).
 
 ## 7. Problemas comuns
 
@@ -210,7 +224,9 @@ que tudo passe por PR.
 | Trocou de cliente na mesma máquina | Nada a fazer: ao abrir o projeto, o assistente detecta a conta diferente e, com sua permissão, refaz o login |
 | Botão do VS Code/Claude Desktop cinza no app | Ferramenta não instalada (o app procura no Menu Iniciar e no registro). Instale e reabra o app |
 | VS Code sem a extensão Claude Code | App → Configurações → **Instalar extensão Claude Code** |
-| App não abre pelo atalho | Veja `%LOCALAPPDATA%\fabric-ai-doc-helper\app.log` ou rode `uv run python app/main.py --navegador` na pasta de instalação |
+| App não abre pelo atalho | Veja `%LOCALAPPDATA%\fabric-ai-doc-helper\app.log` ou rode o instalador de novo (se o app estiver aberto, feche antes) |
+| Faixa "Instalação antiga (v1)" no app | Rode o instalador de novo: ele troca a instalação baseada em Git pela atual, mantendo projetos e configurações |
+| "Assistente desta pasta foi editado localmente" | Alguém alterou arquivos do assistente na pasta do projeto. Desfaça a alteração (ou apague o arquivo citado) e abra o projeto de novo |
 | Sumário do Word desatualizado | `powershell -ExecutionPolicy Bypass -File scripts/finalizar_docx.ps1 projeto/docs/<arquivo>.docx` ou, no Word, botão direito no sumário → Atualizar campo |
 | Consumo de capacidade (CU) | Não é acessível pelo Fabric CLI; depende do app *Microsoft Fabric Capacity Metrics* e de permissão na capacidade |
 
@@ -220,9 +236,10 @@ que tudo passe por PR.
 AGENTS.md                   instruções para qualquer assistente (fonte única)
 CLAUDE.md                   importa o AGENTS.md + notas do Claude Code
 README.md                   este guia
-instalar.ps1                instalador do app (Git, uv, ambiente e atalhos)
+instalar.ps1                instalador do app (uv, download da versão, ambiente e atalhos)
 CHANGELOG.md                novidades de cada versão publicada (mostradas pelo app ao atualizar)
-app/                        app Fabric Doc Helper: main.py (interface) e servicos.py (projetos, ferramentas)
+app/                        app Fabric Doc Helper: main.py (interface) e servicos.py (projetos,
+                            harness, ferramentas, versões). Não vai para as pastas de projeto
 pyproject.toml / uv.lock    dependências (Python 3.12, ms-fabric-cli…)
 .mcp.json                   MCP microsoft-learn para o Claude Code
 .agents/
@@ -249,5 +266,8 @@ scripts/
   build_doc.py              gera o .docx a partir da especificação
   editar_docx.py            aplica alterações pontuais em um .docx já revisado
   finalizar_docx.ps1        atualiza sumário no Word e exporta PDF
-projeto/                    (criado no uso; ignorado pelo Git) dados do cliente
+projeto/                    (só nas pastas de projeto; ignorado pelo Git) dados do cliente
 ```
+Vão para cada pasta de projeto (o "harness"): `AGENTS.md`, `CLAUDE.md`, `.mcp.json`,
+`pyproject.toml`, `uv.lock`, `.python-version`, `.agents/`, `.claude/`, `scripts/` e `templates/`
+(lista em `HARNESS_*` de `app/servicos.py`).
