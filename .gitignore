@@ -1,0 +1,18 @@
+# Área de trabalho do cliente: dados, snapshots e documentos NUNCA vão para o Git
+projeto/
+
+# Ambiente Python (recriado com `uv sync`)
+.venv/
+__pycache__/
+*.pyc
+
+# Configurações pessoais do Claude Code e do editor
+.claude/settings.local.json
+.vscode/
+
+# Modo manutenção é local e temporário: nunca versionar (um clone deve nascer protegido)
+.claude/MANUTENCAO
+
+# Segredos
+.env
+*.secret

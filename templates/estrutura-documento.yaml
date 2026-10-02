@@ -1,0 +1,179 @@
+# =============================================================================
+# ESTRUTURA FIXA do documento técnico de arquitetura Fabric (fabric-ai-doc-helper)
+#
+# Como usar (o Claude faz isso seguindo a skill `fabric-documentacao`):
+#   1. Copiar para projeto/docs/DT_<cliente>_<projeto>_v<versão>.yaml
+#   2. Preencher cada seção a partir do inventário, da leitura dos itens, do projeto.yaml e das referências opcionais
+#   3. uv run python scripts/build_doc.py projeto/docs/<arquivo>.yaml
+#   4. powershell -ExecutionPolicy Bypass -File scripts/finalizar_docx.ps1 projeto/docs/<arquivo>.docx
+#
+# Regras da estrutura:
+#   * A ORDEM e os TÍTULOS das seções 1–15 são fixos. Não remover seções: se não
+#     houver conteúdo, manter a seção com uma frase explicando por quê.
+#   * Seções marcadas [REF: ...] ficam mais ricas quando a referência opcional existe;
+#     sem ela, usar o que o inventário/projeto.yaml permitir e marcar lacunas com {{...}}.
+#   * O Apêndice B só existe quando houver planilha de mapeamento.
+#
+# Tipos de bloco (uma chave por item da lista `blocos`):
+#   h2: "Subtítulo"                  h3: "Subtítulo menor (azul, negrito)"
+#   p: "Parágrafo com **negrito**, `código` e {{pendência}}"
+#   bullets: ["item 1", "item 2"]
+#   nota: "Observação em cinza itálico (prefixo »)"
+#   destaque: {titulo: "Atenção:", texto: "Caixa com filete dourado"}
+#   codigo: ["linha 1", "linha 2"]   (ou texto com quebras de linha)
+#   tabela: {colunas: [...], linhas: [[...], ...], larguras: [opcional, soma 9026],
+#            tamanho: 16-20 (opcional), primeira_negrito: false, zebra: true, total: false}
+#            Célula com lista = vários parágrafos na mesma célula.
+#   quebra_pagina: true
+# =============================================================================
+
+documento:
+  titulo: "Documentação Técnica"
+  subtitulo: "{{Nome do projeto}}"
+  linha_apoio: "Frente de Engenharia de Dados (Microsoft Fabric)"
+  classificacao: "RESTRITO"
+  data: "{{dd/mm/aaaa}}"
+  autor: "{{Autor}}"
+  rodape: "Documentação Técnica"
+  campos_capa:
+    - {rotulo: "Cliente", valor: "{{Cliente}}"}
+    - {rotulo: "Workspace de referência", valor: "{{Workspace alvo}}"}
+    - {rotulo: "Versão", valor: "0.1 (rascunho para revisão)"}
+    - {rotulo: "Data", valor: "{{dd/mm/aaaa}}"}
+
+secoes:
+  - titulo: "Controle do Documento"
+    blocos:
+      - h2: "Histórico de versões"
+      - tabela:
+          colunas: ["Versão", "Data", "Autor", "Descrição"]
+          larguras: [900, 1300, 2000, 4826]
+          linhas:
+            - ["0.1", "{{dd/mm/aaaa}}", "{{Autor}}", "Versão inicial, elaborada a partir dos metadados do workspace {{Workspace alvo}}."]
+      - h2: "Participantes do projeto"
+      - tabela:
+          colunas: ["Papel", "Responsável"]
+          linhas: [["{{Papel}}", "{{Nome}}"]]
+      - h2: "Documentos de referência"
+      - bullets:
+          - "**Workspace {{Workspace alvo}}**: metadados, definições de notebooks e pipelines e schemas das tabelas, lidos (somente leitura) em {{data do inventário}}."
+          # + uma linha por referência opcional EFETIVAMENTE usada (levantamento, mapeamento, outros)
+
+  - titulo: "Visão Geral"
+    blocos:
+      - h2: "Objetivo"
+      - p: "{{O que o documento descreve, para quem e para quê (Power BI, ML, operação)}}"
+      - h2: "Contexto"
+      - p: "{{Situação anterior, motivação e objetivos da nova arquitetura}}"
+      - h2: "Delimitação desta documentação"
+      - destaque: {titulo: "Escopo deste documento:", texto: "{{O que está coberto e o que é responsabilidade de outras frentes}}"}
+      # Se houver workspace legado no projeto.yaml:
+      - h2: "Da arquitetura atual para a nova arquitetura"
+      - tabela:
+          colunas: ["Aspecto", "Arquitetura atual ({{legado}})", "Nova arquitetura ({{alvo}})"]
+          linhas: [["{{aspecto}}", "{{antes}}", "{{depois}}"]]
+
+  - titulo: "Escopo Técnico"            # [REF: levantamento de requisitos]
+    blocos:
+      - h2: "{{Relatórios / produtos atendidos}}"
+      - tabela:
+          colunas: ["#", "Item", "Observação"]
+          linhas: [["1", "{{item}}", "{{observação}}"]]
+      - h2: "O que está incluído"
+      - bullets: ["{{item incluído}}"]
+      - h2: "O que NÃO está incluído"
+      - bullets: ["{{fora de escopo}}"]
+      - h2: "Premissas e dependências"
+      - bullets: ["{{premissa}}"]
+
+  - titulo: "Arquitetura da Solução"
+    blocos:
+      - h2: "Visão em camadas"
+      - tabela:
+          colunas: ["Camada", "Schema", "Implementação", "Responsabilidade"]
+          primeira_negrito: true
+          linhas: [["Bronze", "`bronze`", "{{...}}", "{{...}}"]]
+      - h2: "Inventário do workspace"
+      - tabela: {colunas: ["Item", "Tipo", "Pasta", "Função"], tamanho: 17, linhas: [["`{{item}}`", "{{tipo}}", "{{pasta}}", "{{função}}"]]}
+      - h2: "Lakehouse(s)"
+      - h2: "Ambiente de computação"
+      - h2: "Convenções de nomenclatura"
+
+  - titulo: "Fontes de Dados e Ingestão (Camada Bronze)"
+    blocos:
+      - h2: "Fontes de dados"
+      - h2: "Estratégias de carga"
+      - h2: "Arquivos de configuração"
+      - h2: "Tabelas da camada Bronze"
+      - h2: "Colunas de auditoria"
+
+  - titulo: "Camada Prata"
+    blocos:
+      - p: "{{Padronizações aplicadas e tabela MLV/tabela × origem × transformações}}"
+
+  - titulo: "Camada Ouro – Modelo Analítico"
+    blocos:
+      - p: "{{Tabelas fato/dimensão/suporte, granularidade e origens}}"
+      - h2: "Regras de negócio implementadas"
+
+  - titulo: "Materialized Lake Views (MLV)"
+    blocos:
+      # Se o projeto não usar MLV: explicar como as transformações são materializadas (notebooks, SQL, dataflows).
+      - h2: "Conceito e motivação"
+      - h2: "Ciclo de vida"
+      - h2: "Dependências (linhagem)"
+
+  - titulo: "Orquestração e Operação"
+    blocos:
+      - h2: "Pipeline de orquestração"
+      - codigo: ["{{árvore de execução}}"]
+      - h2: "Parâmetros"
+      - h2: "Agendamento"
+      - h2: "Reprocessamento"
+
+  - titulo: "Consumo: Power BI e Machine Learning"   # [REF: mapeamento de tabelas]
+    blocos:
+      - h2: "Diretrizes gerais"
+      - h2: "Mapeamento relatório × tabelas Ouro"     # só com planilha de mapeamento
+      - h2: "Cargas de Machine Learning"              # só se houver atributos/rótulos identificáveis
+
+  - titulo: "Implantação, Governança e Manutenção"
+    blocos:
+      - h2: "Promoção para produção"
+      - h2: "Como alterar uma regra de negócio"
+      - h2: "Segurança e credenciais"
+
+  - titulo: "Ganhos de Performance e Redução de Capacidade"
+    blocos:
+      - h2: "Alavancas de eficiência"
+      - h2: "Medição do ganho de capacidade"
+
+  - titulo: "Pontos de Atenção e Pendências Técnicas"
+    blocos:
+      - tabela:
+          colunas: ["ID", "Item", "Impacto", "Ação recomendada"]
+          larguras: [600, 3726, 1300, 3400]
+          linhas: [["P1", "{{item}}", "{{Alto/Médio/Baixo}}", "{{ação}}"]]
+
+  - titulo: "Entrega para o Time de BI"
+    blocos:
+      - bullets: ["{{passo para a migração dos relatórios}}"]
+
+  - titulo: "Aprovação"
+    blocos:
+      - p: "De acordo com a arquitetura, as regras e os pontos de atenção descritos neste documento:"
+      - tabela:
+          colunas: ["Bluer Tecnologia", "{{Cliente}}"]
+          zebra: false
+          linhas: [["Nome / Data:", "Nome / Data:"], [" ", " "]]
+
+apendices:
+  - letra: "A"
+    titulo: "Dicionário de Dados da Camada Ouro"
+    blocos:
+      - nota: "Tipos conforme o schema publicado no Lakehouse em {{data do inventário}}."
+      - h3: "ouro.{{tabela}}"
+      - tabela: {colunas: ["Coluna", "Tipo", "Descrição"], larguras: [3200, 1400, 4426], tamanho: 16, linhas: [["`{{coluna}}`", "{{tipo}}", "{{descrição}}"]]}
+  # Apêndice B somente quando houver planilha de mapeamento:
+  # - letra: "B"
+  #   titulo: "Mapeamento de Colunas Power BI × Camada Ouro"

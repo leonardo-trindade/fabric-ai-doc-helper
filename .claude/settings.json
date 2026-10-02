@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "enabledMcpjsonServers": ["microsoft-learn"],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read|Edit|Write|MultiEdit|NotebookEdit|Glob|Grep|Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --quiet python \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.py\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(uv run fab auth status*)",
+      "Bash(uv run fab exists *)",
+      "Bash(uv run fab ls*)",
+      "Bash(uv run fab get *)",
+      "Bash(uv run fab table schema *)",
+      "Bash(uv run python scripts/*)",
+      "mcp__microsoft-learn"
+    ],
+    "deny": [
+      "Read(~/.config/fab/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.azure/**)",
+      "Read(**/.env)",
+      "Bash(uv run fab rm *)",
+      "Bash(uv run fab mv *)",
+      "Bash(uv run fab cp *)",
+      "Bash(uv run fab export *)",
+      "Bash(uv run fab import *)",
+      "Bash(uv run fab run *)",
+      "Bash(uv run fab mkdir *)",
+      "Bash(uv run fab set *)"
+    ]
+  }
+}

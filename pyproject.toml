@@ -1,0 +1,17 @@
+[project]
+name = "fabric-ai-doc-helper"
+version = "0.1.0"
+description = "Assistente (Claude Code) para documentação técnica de arquiteturas Microsoft Fabric, com leitura somente-leitura via Fabric CLI."
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = [
+    "ms-fabric-cli==1.7.0",     # Fabric CLI (comando `fab`)
+    "pip-system-certs>=4.0",    # usa o repositório de certificados do Windows (antivírus/proxy com inspeção HTTPS)
+    "pyyaml>=6.0",              # projeto.yaml e especificação do documento
+    "openpyxl>=3.1",            # leitura de planilhas de referência (.xlsx)
+    "python-pptx>=1.0",         # leitura de apresentações de referência (.pptx)
+    "python-docx>=1.1",         # leitura de documentos de referência (.docx)
+]
+
+[tool.uv]
+package = false
