@@ -60,7 +60,7 @@ SAFE_DEVICES = {"/dev/null", "nul", "$null", "/dev/stdout", "/dev/stderr"}
 # Arquivos/pastas somente leitura para o assistente (relativos à raiz do projeto).
 PROTEGIDOS = ["AGENTS.md", "CLAUDE.md", "README.md", "pyproject.toml", "uv.lock", ".python-version",
               ".mcp.json", ".gitignore", ".agents", ".claude", "scripts", "templates", "app",
-              "instalar.ps1", "projeto/referencias"]
+              "instalar.ps1", "CHANGELOG.md", "projeto/referencias"]
 LIBERADOS_DENTRO = ["projeto/referencias/_texto"]  # gerado por scripts/ler_referencia.py
 SEMPRE_PROTEGIDOS = [str(MANUTENCAO)]  # nem em modo manutenção
 VERBOS_ESCRITA = re.compile(

@@ -5,6 +5,7 @@ Rodar:   uv run python app/main.py            (janela própria)
 
 A conversa com o assistente acontece na ferramenta escolhida; o app só organiza os projetos.
 A conta do Fabric é conferida pelo assistente no início de cada conversa.
+Rodado de fora da instalação padrão, abre em modo desenvolvimento (ver app/servicos.py).
 """
 from __future__ import annotations
 
@@ -210,14 +211,30 @@ def dialogo_config() -> None:
             ui.button("Instalar extensão Claude Code no VS Code", on_click=instalar).props("outline")
 
         ui.separator()
-        status = ui.label().classes("text-sm")
+        ui.label(f"Versão instalada: {s.versao_atual()}").classes("text-subtitle2")
+        if s.MODO_DEV:
+            ui.label(f"Modo desenvolvimento (branch {s.branch_origem() or '?'}). Os projetos de teste acompanham "
+                     "o branch atual deste clone; atualize com git.").classes("text-sm text-grey-7")
+        else:
+            status = ui.label().classes("text-sm")
+            versoes = ui.select([], label="Instalar outra versão (voltar atrás)").props("dense outlined").classes("w-full")
 
-        async def atualizar() -> None:
-            status.text = "Atualizando…"
-            ok, msg = await run.io_bound(s.atualizar_app)
-            status.text = ("Atualizado. Reinicie o app para usar a nova versão. " if ok else "Falha: ") + msg
+            async def carregar_versoes() -> None:
+                versoes.options = await run.io_bound(s.versoes_publicadas)
+                versoes.update()
 
-        ui.button("Atualizar app", icon="system_update", on_click=atualizar).props("outline")
+            async def instalar(tag: str | None) -> None:
+                status.text = "Instalando…"
+                ok, msg = await run.io_bound(s.instalar_versao, tag)
+                status.text = msg if ok else f"Falha: {msg}"
+
+            with ui.row().classes("gap-2"):
+                ui.button("Atualizar para a mais nova", icon="system_update",
+                          on_click=lambda: instalar(None)).props("outline")
+                ui.button("Instalar versão escolhida", icon="history",
+                          on_click=lambda: instalar(versoes.value) if versoes.value else ui.notify("Escolha uma versão.")
+                          ).props("outline")
+            ui.timer(0.1, carregar_versoes, once=True)
 
         def salvar() -> None:
             c = s.carregar()
@@ -343,18 +360,47 @@ async def pagina() -> None:
         with ui.row().classes("items-center gap-2"):
             ui.icon("description", size="md")
             ui.label("Fabric Doc Helper").classes("text-h6")
+            ui.label(s.versao_atual()).classes("text-xs px-2 py-0.5 rounded border border-white/60 text-white")
         with ui.row().classes("gap-1"):
             ui.button("Novo projeto", icon="add", on_click=dialogo_novo).props("unelevated color=white text-color=primary")
             ui.button(icon="create_new_folder", on_click=dialogo_existente).props("flat color=white").tooltip("Adicionar pasta existente")
             ui.button(icon="settings", on_click=dialogo_config).props("flat color=white").tooltip("Configurações")
+    if s.MODO_DEV:
+        with ui.row().classes("w-full bg-orange-2 text-orange-10 px-6 py-2 items-center gap-2 no-wrap"):
+            ui.icon("science")
+            ui.label(f"DESENVOLVIMENTO · branch {s.branch_origem() or '?'} · projetos e lista separados do uso "
+                     f"real (pasta padrão {s.PASTA_PADRAO})").classes("text-sm")
     with ui.column().classes("w-full max-w-5xl mx-auto px-4 py-4"):
         ui.input(placeholder="Buscar por cliente, projeto ou pasta",
                  on_change=lambda ev: (FILTRO.update(texto=ev.value or ""), lista.refresh())
                  ).props("outlined dense clearable").classes("w-full")
         lista()
     ui.timer(0.1, detectar, once=True)  # detecção roda depois que a página aparece
+    ui.timer(1.0, verificar_versao, once=True)
+
+
+async def verificar_versao() -> None:
+    """Produção: avisa quando há versão publicada mais nova, com as novidades do CHANGELOG."""
+    tag = await run.io_bound(s.atualizacao_disponivel)
+    if not tag:
+        return
+    notas = await run.io_bound(s.novidades, tag)
+    with ui.dialog() as dlg, ui.card().classes("w-[560px] max-w-full"):
+        ui.label(f"Nova versão disponível: {tag}").classes("text-h6")
+        ui.markdown(notas).classes("text-sm max-h-80 overflow-auto")
+        status = ui.label().classes("text-sm")
+
+        async def atualizar() -> None:
+            status.text = "Instalando…"
+            ok, msg = await run.io_bound(s.instalar_versao, tag)
+            status.text = msg if ok else f"Falha: {msg}"
+
+        with ui.row().classes("w-full justify-end"):
+            ui.button("Depois", on_click=dlg.close).props("flat")
+            ui.button("Atualizar agora", icon="system_update", on_click=atualizar)
+    dlg.open()
 
 
 if __name__ in {"__main__", "__mp_main__"}:
-    ui.run(title="Fabric Doc Helper", native=NATIVO, host="127.0.0.1",  # só este computador window_size=(1100, 780) if NATIVO else None,
+    ui.run(title="Fabric Doc Helper" + (" (dev)" if s.MODO_DEV else ""), native=NATIVO, host="127.0.0.1",  # só este computador window_size=(1100, 780) if NATIVO else None,
            reload=False, show=not NATIVO and "--sem-abrir" not in sys.argv, port=None if NATIVO else 8765, favicon="📄")

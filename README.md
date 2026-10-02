@@ -153,15 +153,45 @@ As demais regras (pasta, somente leitura no Fabric, sem cópias) continuam valen
 4. MCP: configure o `microsoft-learn` no formato da ferramenta.
 5. Inclua a ferramenta na tabela acima.
 
-## 6. Atualizar o assistente
+## 6. Versões e atualizações
 
-No app: **Configurações → Atualizar app**. Cada projeto recebe a versão nova ao ser aberto pelo
-app (a pasta `projeto/` não é afetada). Num clone manual:
-```powershell
-git pull        # novas skills, scripts e ajustes do template
-uv sync         # se o pyproject.toml mudou
-```
-Rodar o instalador de novo também atualiza a instalação.
+Quem usa o app recebe só **versões publicadas** (tags `vX.Y.Z`), nunca o que acabou de entrar na `main`.
+
+- **Aviso automático:** ao abrir, o app verifica se há versão nova e mostra as novidades
+  (do `CHANGELOG.md`) com o botão **Atualizar agora**.
+- **Manual:** Configurações → **Atualizar para a mais nova**.
+- **Voltar atrás:** Configurações → escolha a versão → **Instalar versão escolhida**
+  (ou `$env:FDH_VERSAO = 'v1.0.0'` antes do comando de instalação).
+- **Projetos:** cada um recebe a versão instalada ao ser aberto pelo app. A pasta `projeto/`
+  nunca é tocada; uma pasta com alterações locais no assistente não é atualizada (o app avisa).
+- Clone manual (sem app): `git pull` e `uv sync`.
+
+### Desenvolvimento (testar sem afetar o uso real)
+| | Desenvolvimento | Uso real (produção) |
+|---|---|---|
+| Código | seu clone de trabalho, em branches | `%LOCALAPPDATA%\Programs\fabric-ai-doc-helper` (instalador), branch `estavel` = última tag |
+| Abrir o app | atalho **Fabric Doc Helper (dev)** (criado por `powershell -ExecutionPolicy Bypass -File instalar.ps1` dentro do clone) ou `uv run python app/main.py` | atalho **Fabric Doc Helper** |
+| Lista de projetos | `%LOCALAPPDATA%\fabric-ai-doc-helper\dev\app.json` | `%LOCALAPPDATA%\fabric-ai-doc-helper\app.json` |
+| Pasta padrão | `C:\Fabric-teste` | `C:\Fabric` |
+| Projetos recebem | o **branch atual** do clone (só o que está commitado) | a versão instalada |
+
+O app em desenvolvimento mostra a faixa laranja **DESENVOLVIMENTO** e "(dev)" no título.
+O Fabric é só leitura, então testar contra um workspace real não altera nada nele; se o teste
+trocar a conta logada, o projeto real detecta e pede para refazer o login.
+
+Ciclo: branch → commit → testar no app (dev) com um projeto em `C:\Fabric-teste` → PR → merge → publicar.
+
+### Publicar uma versão
+1. Na `main` atualizada, acrescente a seção da versão no topo do `CHANGELOG.md` e faça o commit.
+2. Crie e envie a tag:
+   ```powershell
+   git tag -a v1.1.0 -m "v1.1.0"
+   git push origin v1.1.0
+   ```
+3. Pronto: os apps instalados avisam a nova versão na próxima abertura.
+
+Proteja a `main` no GitHub (Settings → Branches → *Require a pull request before merging*) para
+que tudo passe por PR.
 
 ## 7. Problemas comuns
 
@@ -184,6 +214,7 @@ AGENTS.md                   instruções para qualquer assistente (fonte única)
 CLAUDE.md                   importa o AGENTS.md + notas do Claude Code
 README.md                   este guia
 instalar.ps1                instalador do app (Git, uv, ambiente e atalhos)
+CHANGELOG.md                novidades de cada versão publicada (mostradas pelo app ao atualizar)
 app/                        app Fabric Doc Helper: main.py (interface) e servicos.py (projetos, ferramentas)
 pyproject.toml / uv.lock    dependências (Python 3.12, ms-fabric-cli…)
 .mcp.json                   MCP microsoft-learn para o Claude Code

@@ -8,10 +8,15 @@ Ou, de dentro de um clone:  powershell -ExecutionPolicy Bypass -File instalar.ps
 
 O que faz:
   1. Instala Git e uv (winget), se faltarem.
-  2. Instala/atualiza o app em %LOCALAPPDATA%\Programs\fabric-ai-doc-helper (ou usa o clone atual).
+  2. Producao: instala/atualiza o app em %LOCALAPPDATA%\Programs\fabric-ai-doc-helper na ultima
+     versao publicada (tag vX.Y.Z), no branch local "estavel".
+     Desenvolvimento (rodado com -File de dentro de um clone): usa o clone como esta.
   3. Prepara o ambiente (uv sync: Python 3.12, Fabric CLI, interface).
-  4. Cria os atalhos "Fabric Doc Helper" no Menu Iniciar e na Área de Trabalho e abre o app.
-Rodar de novo atualiza a instalação. Os projetos (pastas de cada cliente) não são afetados.
+  4. Cria os atalhos "Fabric Doc Helper" (ou "Fabric Doc Helper (dev)") e abre o app.
+Rodar de novo atualiza a instalacao. Os projetos (pastas de cada cliente) nao sao afetados.
+
+Versao especifica (ex.: voltar atras):
+    $env:FDH_VERSAO = 'v1.0.0'; irm https://raw.githubusercontent.com/leonardo-trindade/fabric-ai-doc-helper/main/instalar.ps1 | iex
 #>
 $ErrorActionPreference = 'Stop'
 $Repo = 'https://github.com/leonardo-trindade/fabric-ai-doc-helper.git'
@@ -42,23 +47,40 @@ try {
     Garantir uv 'astral-sh.uv' 'uv'
 
     # Clone atual (rodado com -File de dentro do repositório) ou instalação padrão.
-    if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot 'app\main.py'))) {
-        $Destino = $PSScriptRoot
-        Passo "Usando o clone atual: $Destino"
+    $Producao = Join-Path $env:LOCALAPPDATA 'Programs\fabric-ai-doc-helper'
+    $Dev = $PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot 'app\main.py')) -and
+           ((Resolve-Path $PSScriptRoot).Path.TrimEnd('\') -ne $Producao)
+    if ($Dev) {
+        $Destino = (Resolve-Path $PSScriptRoot).Path
+        $Nome = "$Nome (dev)"
+        Passo "Modo desenvolvimento: usando o clone atual ($Destino) como esta"
+        git -C $Destino config http.sslBackend schannel
     } else {
-        $Destino = Join-Path $env:LOCALAPPDATA 'Programs\fabric-ai-doc-helper'
+        $Destino = $Producao
         if (Test-Path (Join-Path $Destino '.git')) {
-            Passo "Atualizando a instalacao em $Destino"
-            git -C $Destino -c http.sslBackend=schannel pull --ff-only
+            Passo "Buscando versoes em $Destino"
         } else {
             Passo "Baixando o app para $Destino"
             New-Item -ItemType Directory -Force (Split-Path $Destino) | Out-Null
             # schannel = certificados do Windows (evita erro de SSL com antivirus/proxy com inspecao HTTPS)
-            git -c http.sslBackend=schannel clone $Repo $Destino
+            git -c http.sslBackend=schannel clone --quiet $Repo $Destino
+            if ($LASTEXITCODE -ne 0) { throw 'Falha no git clone (veja a mensagem acima).' }
         }
-        if ($LASTEXITCODE -ne 0) { throw 'Falha no git (veja a mensagem acima).' }
+        git -C $Destino config http.sslBackend schannel
+        git -C $Destino fetch --quiet --tags --force origin
+        if ($LASTEXITCODE -ne 0) { throw 'Falha ao buscar versoes no GitHub (veja a mensagem acima).' }
+
+        $Versao = $env:FDH_VERSAO
+        if (-not $Versao) { $Versao = git -C $Destino tag -l 'v*' --sort=-v:refname | Select-Object -First 1 }
+        if ($Versao) {
+            Passo "Instalando a versao $Versao"
+            git -C $Destino checkout --quiet -B estavel $Versao
+        } else {
+            Write-Host 'Aviso: ainda nao ha versao publicada (tag vX.Y.Z); usando a main.' -ForegroundColor Yellow
+            git -C $Destino checkout --quiet -B estavel origin/main
+        }
+        if ($LASTEXITCODE -ne 0) { throw 'Falha ao trocar de versao (a instalacao tem alteracoes locais?).' }
     }
-    git -C $Destino config http.sslBackend schannel
 
     Passo 'Preparando o ambiente (pode levar alguns minutos na primeira vez)'
     Push-Location $Destino

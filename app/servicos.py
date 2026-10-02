@@ -5,6 +5,13 @@ O app NÃO gerencia contas: a conta do Fabric é conferida pelo assistente em ca
 
 Dados do app (sem tokens, sem dados do workspace): %LOCALAPPDATA%/fabric-ai-doc-helper/app.json.
 Cada projeto é uma pasta própria, clonada desta instalação (RAIZ), com os dados em projeto/.
+
+Dois ambientes:
+- Produção: instalação do instalar.ps1 em %LOCALAPPDATA%/Programs/fabric-ai-doc-helper. Fica no branch
+  local `estavel`, que aponta para a última versão publicada (tag vX.Y.Z); os projetos acompanham esse branch.
+- Desenvolvimento: qualquer outro clone. Usa dados separados (…/fabric-ai-doc-helper/dev), pasta padrão
+  C:/Fabric-teste e os projetos acompanham o branch atual do clone. Atualização é feita com git.
+  FDH_PERFIL=dev|producao força o modo.
 """
 from __future__ import annotations
 
@@ -19,8 +26,15 @@ from datetime import datetime
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]  # instalação do app (origem dos clones de projeto)
-DADOS = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "fabric-ai-doc-helper"
+LOCAL = Path(os.environ.get("LOCALAPPDATA", Path.home()))
+INSTALACAO_PRODUCAO = LOCAL / "Programs" / "fabric-ai-doc-helper"
+_perfil = os.environ.get("FDH_PERFIL", "").lower()
+MODO_DEV = _perfil == "dev" or (_perfil != "producao" and
+                                os.path.normcase(str(RAIZ)) != os.path.normcase(str(INSTALACAO_PRODUCAO)))
+DADOS = LOCAL / "fabric-ai-doc-helper" / ("dev" if MODO_DEV else "")
 ARQUIVO = DADOS / "app.json"
+PASTA_PADRAO = r"C:\Fabric-teste" if MODO_DEV else r"C:\Fabric"
+BRANCH_ESTAVEL = "estavel"
 SEM_JANELA = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 FERRAMENTAS = {"vscode": "VS Code", "claude": "Claude Desktop"}
@@ -41,7 +55,7 @@ class Projeto:
 @dataclass
 class Config:
     autor: str = ""
-    pasta_padrao: str = r"C:\Fabric"
+    pasta_padrao: str = PASTA_PADRAO
     projetos: list[Projeto] = field(default_factory=list)
 
 
@@ -50,7 +64,7 @@ def carregar() -> Config:
         d = json.loads(ARQUIVO.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         return Config()
-    return Config(autor=d.get("autor", ""), pasta_padrao=d.get("pasta_padrao", r"C:\Fabric"),
+    return Config(autor=d.get("autor", ""), pasta_padrao=d.get("pasta_padrao", PASTA_PADRAO),
                   projetos=[Projeto(**p) for p in d.get("projetos", [])])
 
 
@@ -179,7 +193,10 @@ def criar_projeto(cfg: Config, *, cliente: str, projeto: str, workspace: str, au
 
     progresso("Copiando o assistente para a pasta do projeto…")
     destino.parent.mkdir(parents=True, exist_ok=True)
-    r = rodar("git", "clone", "--quiet", str(RAIZ), str(destino))
+    branch = branch_origem()
+    if not branch:
+        raise RuntimeError("A instalação não está em um branch (HEAD solto). Rode 'Atualizar app' ou o instalador.")
+    r = rodar("git", "clone", "--quiet", "--branch", branch, str(RAIZ), str(destino))
     if r.returncode != 0:
         raise RuntimeError(f"Falha ao criar a pasta do projeto (git clone): {_erro(r)}")
 
@@ -285,9 +302,20 @@ def estado(p: Projeto) -> Estado:
 
 
 def atualizar_projeto(p: Projeto) -> str | None:
-    """Traz para o projeto a versão atual do assistente (desta instalação). Retorna aviso, se houver."""
-    r = rodar("git", "pull", "--ff-only", "--quiet", cwd=p.pasta, timeout=120)
-    aviso = None if r.returncode == 0 else "Não foi possível atualizar o assistente nesta pasta (alterações locais?)."
+    """Deixa o assistente do projeto igual ao da instalação (versão publicada, ou branch atual em dev).
+
+    Também vale para voltar a uma versão anterior. A pasta projeto/ (ignorada pelo Git) nunca é tocada;
+    se houver alterações locais nos arquivos do assistente, nada é feito e um aviso é retornado.
+    """
+    branch = branch_origem()
+    if not branch:
+        return "A instalação não está em um branch; o projeto não foi atualizado."
+    if rodar("git", "status", "--porcelain", "--untracked-files=no", cwd=p.pasta).stdout.strip():
+        return "O assistente desta pasta tem alterações locais; ele não foi atualizado."
+    r = rodar("git", "fetch", "--quiet", "origin", cwd=p.pasta, timeout=120)
+    if r.returncode == 0:
+        r = rodar("git", "checkout", "--quiet", "-B", branch, f"origin/{branch}", cwd=p.pasta)
+    aviso = None if r.returncode == 0 else f"Não foi possível atualizar o assistente nesta pasta: {_erro(r)}"
     r = rodar("uv", "sync", "--quiet", cwd=p.pasta)
     if r.returncode != 0:
         aviso = f"Falha no uv sync: {_erro(r)}"
@@ -312,11 +340,65 @@ def abrir(p: Projeto, f: Ferramentas) -> str:
             "\"Select folder\", cole (Ctrl+V) e diga \"vamos começar\".")
 
 
-def atualizar_app() -> tuple[bool, str]:
-    r = rodar("git", "-c", "http.sslBackend=schannel", "pull", "--ff-only", cwd=RAIZ, timeout=300)
+# ---------------------------------------------------------------- versões
+def _git(*args: str, timeout: int = 120) -> subprocess.CompletedProcess:
+    return rodar("git", "-c", "http.sslBackend=schannel", *args, cwd=RAIZ, timeout=timeout)
+
+
+def branch_origem() -> str | None:
+    """Branch que os projetos acompanham: `estavel` em produção; o branch atual do clone em dev."""
+    if not MODO_DEV:
+        return BRANCH_ESTAVEL
+    b = _git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+    return None if b in {"", "HEAD"} else b
+
+
+def versao_atual() -> str:
+    """Ex.: v1.2.0 (produção) ou v1.2.0-3-gabc123-dirty / abc123 (desenvolvimento)."""
+    return _git("describe", "--tags", "--always", "--dirty").stdout.strip() or "?"
+
+
+def versoes_publicadas(buscar: bool = True) -> list[str]:
+    """Tags vX.Y.Z, da mais nova para a mais antiga (busca as novas no GitHub se `buscar`)."""
+    if buscar:
+        _git("fetch", "--quiet", "--tags", "--force", "origin", timeout=120)
+    return [t for t in _git("tag", "-l", "v*", "--sort=-v:refname").stdout.split() if t]
+
+
+def atualizacao_disponivel() -> str | None:
+    """Tag mais nova que a instalada (só em produção)."""
+    if MODO_DEV:
+        return None
+    tags = versoes_publicadas()
+    if not tags:
+        return None
+    instalada = _git("describe", "--tags", "--abbrev=0", "HEAD").stdout.strip()
+    return tags[0] if tags[0] != instalada else None
+
+
+def novidades(tag: str) -> str:
+    """Trecho do CHANGELOG.md da versão `tag` (lido da própria tag)."""
+    txt = _git("show", f"{tag}:CHANGELOG.md").stdout
+    m = re.search(rf"(?ms)^## {re.escape(tag)}\b.*?(?=^## |\Z)", txt)
+    return m.group(0).strip() if m else f"{tag}: sem notas no CHANGELOG.md."
+
+
+def instalar_versao(tag: str | None = None) -> tuple[bool, str]:
+    """Produção: põe a instalação na versão `tag` (padrão: a mais nova). Serve para atualizar e voltar."""
+    if MODO_DEV:
+        return False, "Modo desenvolvimento: atualize este clone com git (branches e pull)."
+    tags = versoes_publicadas()
+    if not tags:
+        return False, "Ainda não há versão publicada (tag vX.Y.Z) no repositório."
+    alvo = tag or tags[0]
+    if alvo not in tags:
+        return False, f"Versão {alvo} não encontrada."
+    if _git("status", "--porcelain", "--untracked-files=no").stdout.strip():
+        return False, "A instalação tem alterações locais; reinstale com o instalar.ps1."
+    r = _git("checkout", "--quiet", "-B", BRANCH_ESTAVEL, alvo)
     if r.returncode != 0:
         return False, _erro(r)
-    r2 = rodar("uv", "sync", "--quiet", cwd=RAIZ)
-    if r2.returncode != 0:
-        return False, _erro(r2)
-    return True, (r.stdout or "").strip() or "Atualizado."
+    r = rodar("uv", "sync", "--quiet", cwd=RAIZ)
+    if r.returncode != 0:
+        return False, f"Falha no uv sync: {_erro(r)}"
+    return True, f"Instalada a versão {alvo}. Reinicie o app; cada projeto recebe a versão ao ser aberto."
