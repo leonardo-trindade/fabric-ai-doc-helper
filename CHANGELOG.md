@@ -5,6 +5,13 @@ atualização, então escreva para quem usa: o que muda no dia a dia e se é pre
 
 Formato: `## vX.Y.Z — AAAA-MM-DD` (X = muda o jeito de trabalhar · Y = novidade · Z = correção).
 
+## v2.0.1 — 2026-10-03
+Ajustes nas instruções do assistente. Nada muda no seu dia a dia.
+- Instruções atualizadas para o formato da v2: a pasta de projeto não é repositório, e
+  melhorias no assistente são feitas no código-fonte, não na pasta do projeto.
+- Em projetos criados pelo app, a primeira conversa completa a entrevista em vez de pulá-la.
+- A guarda passa a permitir que o Claude Code leia as próprias skills embutidas (só leitura).
+
 ## v2.0.0 — 2026-10-02
 Muda o jeito de instalar: o app e as pastas de projeto deixam de ser repositórios Git.
 

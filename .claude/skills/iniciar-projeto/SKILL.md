@@ -6,9 +6,8 @@ description: Entrevista inicial do projeto de documentação e verificação da 
 
 # Iniciar projeto (login + entrevista)
 
-O repositório é neutro: nada de cliente fica versionado. Tudo que é específico do projeto é
-coletado aqui e salvo em `projeto/projeto.yaml` (pasta ignorada pelo Git). O usuário nunca
-precisa editar esse arquivo à mão.
+Tudo que é específico do cliente é coletado aqui e salvo em `projeto/projeto.yaml`. O usuário
+nunca precisa editar esse arquivo à mão.
 
 ## Passo 1 — Conta do Fabric (SEMPRE antes de qualquer acesso ao Fabric)
 O login do `fab` é um só para o usuário do Windows (não é por pasta): entre uma conversa e outra
@@ -44,7 +43,7 @@ uv run python scripts/verificar_login.py
 - Nunca rode `fab auth login`/`logout` direto, nunca faça logout sem permissão explícita e
   nunca peça senha/token.
 
-## Passo 2 — Entrevista (só se projeto/projeto.yaml não existir)
+## Passo 2 — Entrevista (projeto novo ou criado pelo app)
 Use a ferramenta de perguntas quando disponível; senão, um único bloco numerado em texto.
 Não invente respostas.
 
@@ -82,6 +81,7 @@ projeto/
   analise/         notas.md — caderno de análise (skill fabric-analise)
   docs/            especificações .yaml, documentos .docx e alteracoes_*.yaml
   docs/revisado/   versões revisadas pelo usuário (fonte da verdade após revisão)
+  planos/          planos do modo de planejamento do Claude Code
 ```
 
 ## Formato do projeto/projeto.yaml
