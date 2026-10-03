@@ -34,6 +34,9 @@ SHELL_TOOLS = {"Bash", "PowerShell"}
 # alfanuméricos trocados por "-". As áreas de outros projetos (outros clientes) ficam bloqueadas.
 SLUG = re.sub(r"[^A-Za-z0-9]", "-", str(RAIZ))
 RAIZES_CLAUDE = [Path(tempfile.gettempdir()) / "claude" / SLUG, Path.home() / ".claude" / "projects" / SLUG]
+# Skills embutidas do Claude Code (arquivos de apoio que elas mandam ler): só leitura, pelas
+# ferramentas de arquivo. Não contém dados de projetos.
+LEITURA_CLAUDE = [Path(tempfile.gettempdir()) / "claude" / "bundled-skills"]
 
 
 def main() -> None:
@@ -46,10 +49,11 @@ def main() -> None:
     cwd = Path(data.get("cwd") or os.getcwd())
     try:
         if tool in FILE_TOOLS:
+            escrita = tool in EDIT_TOOLS
+            raizes = RAIZES_CLAUDE if escrita else RAIZES_CLAUDE + LEITURA_CLAUDE
             for key in ("file_path", "notebook_path", "path"):
                 if ti.get(key):
-                    guarda.verificar_arquivo(str(ti[key]), escrita=tool in EDIT_TOOLS, cwd=cwd,
-                                             raizes_extra=RAIZES_CLAUDE)
+                    guarda.verificar_arquivo(str(ti[key]), escrita=escrita, cwd=cwd, raizes_extra=raizes)
         elif tool in SHELL_TOOLS:
             guarda.verificar_comando(str(ti.get("command", "")), cwd=cwd, raizes_extra=RAIZES_CLAUDE)
     except guarda.Bloqueio as e:

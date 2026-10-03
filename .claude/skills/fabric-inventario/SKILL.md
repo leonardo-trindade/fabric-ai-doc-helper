@@ -13,8 +13,8 @@ A guarda (`scripts/guarda.py`) bloqueia essas ações.
 ## Pré-requisitos
 1. `projeto/projeto.yaml` existe (senão: skill `iniciar-projeto`).
 2. Conta correta: `uv run python scripts/verificar_login.py` deve retornar `OK`. Qualquer
-   outro resultado: siga o Passo 1 da skill `iniciar-projeto` (confirmar com o usuário,
-   logout/login se necessário). Os scripts também param sozinhos se a conta não conferir.
+   outro resultado: siga o Passo 1 da skill `iniciar-projeto`. Os scripts também param
+   sozinhos se a conta não conferir.
 
 ## 1. Inventário (metadados)
 ```
@@ -24,7 +24,7 @@ uv run python scripts/inventario.py --colunas ouro
   schema, nomes de arquivos em Files e, para os schemas de `--colunas`, as colunas e tipos.
 - Use `--colunas` apenas nos schemas que irão para o dicionário de dados (normalmente a camada
   de consumo, ex.: `ouro`/`gold`). Cada tabela custa uma chamada; não peça todos os schemas.
-- Confere o tenant do login com `tenant_id` do projeto.yaml (se vazio, preencha após a 1ª execução).
+- Confere a conta e o tenant registrados no projeto.yaml antes de ler.
 
 ## 2. Leitura de itens (sob demanda, só na tela)
 ```
