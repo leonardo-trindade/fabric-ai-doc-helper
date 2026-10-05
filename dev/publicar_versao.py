@@ -21,6 +21,9 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
+for _fluxo in (sys.stdout, sys.stderr):  # acentos corretos quando a saída vai para outro programa
+    if _fluxo is not None and hasattr(_fluxo, "reconfigure"):
+        _fluxo.reconfigure(encoding="utf-8", errors="replace")
 SEMVER = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
 CABECALHO = re.compile(r"^## (v\d+\.\d+\.\d+) — \d{4}-\d{2}-\d{2}\s*$", re.M)
 

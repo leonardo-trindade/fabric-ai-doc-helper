@@ -10,13 +10,26 @@ description: Escreve e gera o documento técnico (.docx) da arquitetura Fabric n
    (skill `fabric-inventario`) e análise feita (skill `fabric-analise`).
 2. Copie `templates/estrutura-documento.yaml` para
    `projeto/docs/DT_<cliente>_<projeto>_v<versão>.yaml` (sem espaços/acentos no nome).
-3. Preencha a especificação seção a seção (formato dos blocos no cabeçalho do template).
-4. Gere: `uv run python scripts/build_doc.py projeto/docs/<arquivo>.yaml`
-5. Finalize (sumário e, se pedido, PDF):
+3. Preencha a especificação seção a seção (formato dos blocos no cabeçalho do template), com
+   `fontes:` em cada seção que descreve o ambiente (itens lidos e data, inventário, referência,
+   decisão do usuário) — tirado do caderno `projeto/analise/notas.md`.
+4. **Verifique** a especificação e corrija todos os ERROS antes de gerar:
+   `uv run python scripts/verificar_documento.py projeto/docs/<arquivo>.yaml`
+   (estrutura fixa, segredos/IDs/conta técnica, itens e tabelas citados × inventário, Apêndice A ×
+   colunas do inventário, fontes, pendências). Nunca "resolva" um erro apagando a informação certa
+   nem inventando: se faltar dado, use `{{...}}`.
+5. **Revisão independente** do conteúdo (quem escreveu não é quem confere):
+   - Claude Code: delegue ao subagente `revisor-documento`, passando o caminho da especificação.
+   - Outras ferramentas: faça uma segunda passada só de conferência, seção por seção, contra o
+     caderno e o inventário, sem reescrever enquanto confere.
+   Corrija ou marque com `{{...}}` cada afirmação sem respaldo que ele apontar.
+6. Gere: `uv run python scripts/build_doc.py projeto/docs/<arquivo>.yaml`
+7. Finalize (sumário e, se pedido, PDF):
    `powershell -ExecutionPolicy Bypass -File scripts/finalizar_docx.ps1 projeto/docs/<arquivo>.docx [-Pdf]`
-6. Revise o resultado renderizado (PDF → imagens) antes de entregar: sumário, tabelas
+8. Revise o resultado renderizado (PDF → imagens) antes de entregar: sumário, tabelas
    cortadas, títulos órfãos, marcadores `{{...}}` restantes.
-7. Entregue: caminho do .docx, lista de pendências `{{...}}` e decisões que o usuário precisa tomar.
+9. Entregue: caminho do .docx, resultado da verificação (avisos), lista de pendências `{{...}}` e
+   decisões que o usuário precisa tomar.
 
 ## Estrutura fixa
 Seções 1–15 e Apêndice A **sempre**, nesta ordem (títulos iguais aos do template).
@@ -60,6 +73,8 @@ Não copie a estrutura de seções de documentos de referência: eles orientam c
   aparecem só como "credenciais em texto no código de <item>".
 - Números e afirmações de desempenho só com dado medido/fornecido; sem dado, explique como medir.
 - `{{...}}` = pendência visível (dourado). Use-o em vez de supor.
+- Toda afirmação sobre o ambiente tem fonte na seção (`fontes:`); sem fonte, não entra.
+- IDs (workspace, tenant, capacidade, itens) nunca aparecem: refira-se pelo nome.
 
 ## Pedidos de alteração: qual caminho usar
 | Situação | Caminho |
@@ -75,8 +90,10 @@ Não copie a estrutura de seções de documentos de referência: eles orientam c
    `remover_paragrafo`, `historico` (sempre inclua uma linha de histórico).
 3. Aplique: `uv run python scripts/editar_docx.py projeto/docs/alteracoes_v<versão>.yaml`.
    Se um trecho for ambíguo, nada é gravado: torne o `contendo` mais específico.
-4. Finalize com `finalizar_docx.ps1` e revise a renderização das partes alteradas.
-5. Para mudanças grandes (nova seção inteira, reestruturação), explique ao usuário que o caminho
+4. Verifique o .docx gerado: `uv run python scripts/verificar_documento.py projeto/docs/<novo>.docx`
+   (estrutura, segredos/IDs, itens e tabelas citados, pendências) e corrija os ERROS.
+5. Finalize com `finalizar_docx.ps1` e revise a renderização das partes alteradas.
+6. Para mudanças grandes (nova seção inteira, reestruturação), explique ao usuário que o caminho
    seguro é ele aplicar no Word, ou combine com ele regenerar a partir da especificação ciente de
    que as edições manuais precisarão ser refeitas.
 

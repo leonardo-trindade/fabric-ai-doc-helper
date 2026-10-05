@@ -65,16 +65,19 @@ itens. Escreva/atualize durante a análise; leia-o no início de cada conversa a
 # Caderno de análise — <cliente> · <workspace>
 ## Visão geral            (camadas, fontes, orquestração — atualizado em AAAA-MM-DD)
 ## Itens
-### <nome.Tipo> · lido em AAAA-MM-DD
+### `<nome.Tipo>` · lido em AAAA-MM-DD
 - Papel: o que faz na arquitetura
-- Entradas → saídas: tabelas/itens lidos e gravados
-- Regras relevantes: filtros, cálculos, faixas, datas de corte (texto curto)
+- Entradas → saídas: tabelas/itens lidos e gravados (`schema.tabela`)
+- Regras relevantes: filtros, cálculos, faixas, datas de corte (texto curto) — onde estão
+  (célula/atividade), para poder conferir depois
 - Dependências: quem chama / de quem depende
 - Pontos de atenção: (se houver)
-## Esclarecimentos do usuário   (respostas a dúvidas; decisões de escopo vão para projeto.yaml)
+## Esclarecimentos do usuário   (respostas a dúvidas, com data; decisões de escopo vão para projeto.yaml)
 ```
 Regras: nada de código colado além de trechos curtos essenciais; nunca segredos; sempre a data
-de leitura de cada item.
+de leitura de cada item; itens (`Nome.Tipo`) e tabelas (`schema.tabela`) entre crases, com o nome
+exato do inventário. Cada afirmação do documento vai citar estas entradas em `fontes:` — o que
+não estiver aqui (ou no inventário, numa referência ou numa decisão do usuário) não entra.
 
 ## Quando reler um item do workspace
 - Pedido de **texto/estrutura** (reescrever, resumir, reorganizar, mudar tom): use o caderno e o

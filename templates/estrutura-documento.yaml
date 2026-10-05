@@ -25,6 +25,16 @@
 #            tamanho: 16-20 (opcional), primeira_negrito: false, zebra: true, total: false}
 #            Célula com lista = vários parágrafos na mesma célula.
 #   quebra_pagina: true
+#
+# Fontes (obrigatório em toda seção que descreve o ambiente; NÃO aparece no documento):
+#   fontes:
+#     - "`pl_mestre.DataPipeline` e `nb_ouro_vendas.Notebook` (lidos em 05/10/2026)"
+#     - "inventário de 05/10/2026"
+#     - "levantamento de requisitos (referencias/levantamento.pptx), slides 4–6"
+#     - "decisão do usuário em 05/10/2026: não documentar a fonte X (projeto.yaml → decisoes)"
+#   Itens (`Nome.Tipo`) e tabelas (`schema.tabela`) entre crases. Serve para o revisor e para
+#   você conferirem de onde veio cada afirmação. Dispensado em "Controle do Documento" e "Aprovação".
+#   Conferido por scripts/verificar_documento.py.
 # =============================================================================
 
 documento:
