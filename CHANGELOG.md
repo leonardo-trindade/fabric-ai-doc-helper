@@ -5,6 +5,16 @@ atualização, então escreva para quem usa: o que muda no dia a dia e se é pre
 
 Formato: `## vX.Y.Z — AAAA-MM-DD` (X = muda o jeito de trabalhar · Y = novidade · Z = correção).
 
+## v2.1.2 — 2026-10-06
+Correção importante. Atualize assim que o app avisar.
+- O login pelo assistente (trocar de conta ou entrar quando não há login) falhava na v2.1.1 antes
+  de abrir a janela da Microsoft. Corrigido: a janela abre uma vez só.
+- Por dentro: o assistente agora tem testes automáticos que rodam a cada mudança, para evitar que
+  problemas como esse cheguem até você.
+
+## v2.1.1 — 2026-10-05
+Publica as mudanças anunciadas na v2.1.0 (a tag v2.1.0 saiu com o código da v2.0.1). Veja a v2.1.0.
+
 ## v2.1.0 — 2026-10-05
 Novo jeito de escolher o workspace, e correções no login e na guarda.
 - **Workspace escolhido numa lista:** o app não pede mais o nome do workspace. Na 1ª conversa,

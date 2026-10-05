@@ -15,6 +15,14 @@ dependencies = [
     "pywebview>=5.0",           # janela própria do app (Edge WebView2 no Windows)
 ]
 
+[dependency-groups]
+dev = ["pytest>=8"]               # só no código-fonte: uv run --group dev pytest
+
 [tool.uv]
 package = false
 system-certs = true               # usa os certificados do Windows (antivírus/proxy com inspeção HTTPS)
+default-groups = []               # o uv sync do app e das pastas de projeto não instala o grupo dev
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["lento: roda uv sync (cria ambiente Python); pule com -m 'not lento'"]
