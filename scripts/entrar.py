@@ -41,12 +41,28 @@ def tenant_do_projeto() -> str:
 def login_navegador(tenant: str) -> None:
     """Roda `fab auth login` no próprio processo, respondendo o menu com o login pelo navegador."""
     from fabric_cli import main as fab_main
+    from fabric_cli.core import fab_constant
+    from fabric_cli.core.fab_auth import FabAuth
     from fabric_cli.utils import fab_ui
 
     def escolher_navegador(pergunta, opcoes):  # substitui o menu interativo do fab
         return OPCAO_NAVEGADOR if OPCAO_NAVEGADOR in opcoes else None
 
+    # O login pede 3 tokens (Fabric, OneLake, Azure) e cada um que não sai em silêncio abre a
+    # janela de escolha de conta de novo. Só o do Fabric pode abrir a janela; OneLake e Azure
+    # são tentados em silêncio com o mesmo login (o Azure nem é usado pelo projeto).
+    original = FabAuth.get_access_token
+
+    def um_login_so(self, scope, interactive_renew=True):
+        if scope == fab_constant.SCOPE_FABRIC_DEFAULT:
+            return original(self, scope, interactive_renew)
+        try:
+            return original(self, scope, interactive_renew=False)
+        except Exception:  # noqa: BLE001  (sem token silencioso: explicar_tokens() avisa)
+            return None
+
     fab_ui.prompt_select_item = escolher_navegador
+    FabAuth.get_access_token = um_login_so
     sys.argv = ["fab", "auth", "login", *(["--tenant", tenant] if tenant else [])]
     fab_main.main()
 
