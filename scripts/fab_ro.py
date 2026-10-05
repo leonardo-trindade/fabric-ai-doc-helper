@@ -33,7 +33,7 @@ def main() -> None:
         print(f"[guarda fabric-ai-doc-helper] BLOQUEADO: {e}", file=sys.stderr)
         sys.exit(2)
     if args[0].lower() not in SEM_CONFERIR_LOGIN and "--help" not in args and (PROJETO / "projeto.yaml").exists():
-        checar_login(config())
+        checar_login(config(exigir_workspace=False))
     sys.exit(subprocess.run([fab_exe(), *args]).returncode)
 
 

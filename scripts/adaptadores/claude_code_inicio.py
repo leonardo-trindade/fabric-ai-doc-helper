@@ -18,6 +18,8 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
 YAML = RAIZ / "projeto" / "projeto.yaml"
+sys.path.insert(0, str(RAIZ / "scripts"))
+from guarda import _valores_yaml  # noqa: E402  (mesma leitura de valores que a guarda usa)
 
 ACOES = {
     0: "Conta do Fabric confere com a registrada no projeto. Informe em uma linha e siga.",
@@ -33,8 +35,9 @@ ACOES = {
 
 
 def campo(texto: str, chave: str) -> str:
-    m = re.search(rf"(?m)^{chave}:\s*[\"']?([^\"'\n#]*)", texto)
-    return m.group(1).strip() if m else ""
+    m = re.search(rf"(?m)^{chave}:[ \t]*(.*)$", texto)
+    valores = _valores_yaml(m.group(1)) if m else []
+    return valores[0] if valores else ""
 
 
 def uv(*args: str, timeout: int = 240) -> subprocess.CompletedProcess:
@@ -60,7 +63,9 @@ def resumo() -> tuple[str, str]:
                    f"{campo(t, 'workspace_alvo') or '(não definido)'}.")
         linha.append(f"{campo(t, 'cliente')} · {campo(t, 'projeto')}")
         if not campo(t, "workspace_alvo") or not campo(t, "autor"):
-            ctx.append("projeto.yaml incompleto: complete a entrevista (skill iniciar-projeto).")
+            ctx.append("projeto.yaml incompleto: complete a entrevista (skill iniciar-projeto). O workspace "
+                       "é escolhido pelo usuário numa lista, depois da conta confirmada "
+                       "(`uv run python scripts/escolher_workspace.py --listar`).")
     else:
         ctx.append("Sem projeto/projeto.yaml: depois da conta, faça a entrevista (skill iniciar-projeto).")
         linha.append("projeto novo")
@@ -91,7 +96,7 @@ def main() -> None:
         contexto, linha = f"Hook de início falhou ({e}). Siga os Primeiros passos do AGENTS.md.", "Fabric Doc Helper: verificação inicial falhou"
     json.dump({"systemMessage": linha,
                "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": contexto}},
-              sys.stdout, ensure_ascii=False)
+              sys.stdout)  # ASCII com escapes \uXXXX: chega íntegro em qualquer codificação
 
 
 if __name__ == "__main__":

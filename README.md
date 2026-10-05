@@ -26,8 +26,8 @@ O instalador instala o uv se faltar, baixa a última versão publicada, prepara 
 atalho **Fabric Doc Helper** no Menu Iniciar e na Área de Trabalho. Não é preciso Git, Python
 nem o Fabric CLI.
 
-**2. Crie um projeto** no app (**Novo projeto**): cliente, projeto/fase, workspace do Fabric,
-autor, pasta e onde você vai conversar com o assistente: **VS Code** (com a extensão Claude Code)
+**2. Crie um projeto** no app (**Novo projeto**): cliente, projeto/fase, autor, pasta e onde
+você vai conversar com o assistente: **VS Code** (com a extensão Claude Code)
 ou **Claude Desktop**. Opções não instaladas no PC aparecem em cinza.
 
 **3. Abra e converse.** O app abre o projeto na ferramenta escolhida. Diga *"vamos começar"*.
@@ -40,6 +40,11 @@ Na primeira conversa o assistente mostra a conta do Fabric logada e pergunta se 
 - **É:** a conta fica registrada no projeto.
 - **Não é / não há login:** com a sua permissão, ele sai da conta atual e abre a janela de
   login da Microsoft; você só escolhe a conta e entra.
+
+Com a conta confirmada, o assistente **lista os workspaces dessa conta e você escolhe** qual
+documentar (dev, prod ou outro: quem decide é você; o nome é gravado exatamente como está no
+Fabric, junto com o ID). Um projeto documenta um único workspace; para documentar outro, crie
+outro projeto. Opcionalmente, você pode liberar um segundo workspace só para comparação.
 
 Depois disso, **toda conversa e todo acesso ao Fabric conferem a conta**. Se você entrar em
 outra conta no meio do caminho (por exemplo, para outro cliente), o assistente percebe, pede
@@ -71,9 +76,10 @@ Se algum arquivo do assistente tiver sido editado à mão, o app não sobrescrev
 > Abra o assistente **já na pasta do projeto** (o botão **Abrir** faz isso). Uma conversa
 > iniciada em outra pasta não carrega as instruções, o hook de início nem a guarda.
 
-O que o assistente pode perguntar na entrevista (o app já preenche os obrigatórios):
-- **Obrigatório:** nome do cliente, nome do projeto, workspace do Fabric a documentar, autor.
-- **Opcional:** participantes, workspace legado (comparativo), itens do escopo, renomeações
+O que o assistente pode perguntar na entrevista (o app já preenche cliente, projeto e autor):
+- **Obrigatório:** nome do cliente, nome do projeto, autor e o workspace a documentar (escolhido
+  numa lista da conta confirmada).
+- **Opcional:** participantes, workspace de comparação (ex.: legado), itens do escopo, renomeações
   de nomenclatura, classificação do documento.
 
 ## 2. Arquivos de referência (opcionais)
@@ -259,6 +265,7 @@ scripts/
   entrar.py                 login pelo navegador (opção já escolhida) + conferência da conta
   sincronizar_skills.py     copia .agents/skills para as pastas de cada ferramenta
   verificar_login.py        confere se a conta logada no fab é a do projeto
+  escolher_workspace.py     lista os workspaces da conta e grava o escolhido (nome exato + ID)
   inventario.py             inventário de metadados do workspace (sem copiar itens)
   ler_item.py               lê notebooks/pipelines/environments na tela, com segredos mascarados
   _comum.py                 funções compartilhadas

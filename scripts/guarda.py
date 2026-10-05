@@ -38,6 +38,13 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
+
+# Saída sempre em UTF-8: no Windows, quando a saída vai para outro programa (o assistente, um hook),
+# o Python usa cp1252 e os acentos chegam como "�" (ou o script quebra ao escrever um caractere
+# fora do cp1252). Todos os scripts e adaptadores importam este módulo, então vale para todos.
+for _fluxo in (sys.stdout, sys.stderr):
+    if _fluxo is not None and hasattr(_fluxo, "reconfigure"):
+        _fluxo.reconfigure(encoding="utf-8", errors="replace")
 MANUTENCAO = Path(".agents") / "MANUTENCAO"
 
 
@@ -308,13 +315,45 @@ def target_workspaces(root: Path = RAIZ) -> set[str] | None:
         return None
     text = cfg.read_text(encoding="utf-8", errors="ignore")
     names: set[str] = set()
-    m = re.search(r"(?m)^\s*workspace_alvo:\s*[\"']?([^\"'\n#]+?)[\"']?\s*(?:#.*)?$", text)
+    m = re.search(r"(?m)^\s*workspace_alvo:[ \t]*(.*)$", text)
     if m:
-        names.add(m.group(1).strip().lower())
-    m = re.search(r"(?m)^\s*workspaces_leitura_extra:\s*\[([^\]]*)\]", text)
+        valores = _valores_yaml(m.group(1))
+        names |= {valores[0]} if valores else set()
+    m = re.search(r"(?m)^\s*workspaces_leitura_extra:[ \t]*\[(.*)\][ \t]*(?:#.*)?$", text)
     if m:
-        names |= {x.strip().strip("\"'").lower() for x in m.group(1).split(",") if x.strip()}
-    return names
+        names |= set(_valores_yaml(m.group(1)))
+    return {n.strip().lower() for n in names if n.strip()}
+
+
+def _valores_yaml(trecho: str) -> list[str]:
+    """Valores de uma linha YAML simples (escalar, ou itens de uma lista em uma linha), entendendo
+    aspas: o nome do workspace pode ter espaço, vírgula, `#` ou aspas. Fora de aspas, `,` separa
+    itens e ` #` inicia comentário. Aspas duplas aceitam `\\"`; simples, `''`."""
+    out, atual, i, n = [], "", 0, len(trecho)
+    while i < n:
+        c = trecho[i]
+        if c in "\"'":
+            fim, valor = i + 1, ""
+            while fim < n:
+                if c == '"' and trecho[fim] == "\\" and fim + 1 < n:
+                    valor += trecho[fim + 1]; fim += 2; continue  # noqa: E702
+                if trecho[fim] == c:
+                    if c == "'" and fim + 1 < n and trecho[fim + 1] == "'":
+                        valor += "'"; fim += 2; continue  # noqa: E702
+                    break
+                valor += trecho[fim]; fim += 1  # noqa: E702
+            atual += valor
+            i = fim + 1
+            continue
+        if c == "#" and (i == 0 or trecho[i - 1] in " \t"):
+            break
+        if c == ",":
+            out.append(atual); atual = ""  # noqa: E702
+        else:
+            atual += c
+        i += 1
+    out.append(atual)
+    return [v.strip() for v in out if v.strip()]
 
 
 def segmentos(cmd: str) -> list[str]:
@@ -361,6 +400,22 @@ def fab_invocations(cmd: str) -> list[list[str]]:
     return out
 
 
+WS_NO_CAMINHO = re.compile(r"(?:^|/)([^/]+?)\.workspace(?=/|$)", re.I)
+
+
+def workspaces_citados(args: list[str]) -> set[str]:
+    """Workspaces citados (padrão `Nome.Workspace[/...]`), analisando cada argumento separadamente:
+    o nome pode ter espaços (`"WS Fabric-Dev.Workspace/x.Lakehouse"` chega como um argumento só).
+    Um argumento que cita `.Workspace` fora desse padrão é bloqueado, para não passar sem conferência."""
+    cited: set[str] = set()
+    for a in args:
+        achados = WS_NO_CAMINHO.findall(a.strip().strip("\"'"))
+        if not achados and re.search(r"\.workspace\b", a, re.I):
+            raise Bloqueio(f"caminho de workspace não reconhecido: {a!r}. Use `Nome.Workspace/Item.Tipo`.")
+        cited |= {w.strip().lower() for w in achados}
+    return cited
+
+
 def verificar_fab(args: list[str], root: Path = RAIZ) -> None:
     """Valida os argumentos de uma chamada ao Fabric CLI (sem o `fab` inicial)."""
     if not args:
@@ -385,9 +440,7 @@ def verificar_fab(args: list[str], root: Path = RAIZ) -> None:
             raise Bloqueio("`fab api` com método diferente de GET: o projeto é somente leitura.")
     if first == "config":
         return
-    # Workspaces citados no comando (padrão Nome.Workspace)
-    cited = {w.lower() for w in re.findall(r"([^\s\"'/]+?)\.workspace\b", " ".join(args), flags=re.I)}
-    cited |= {w.lower() for w in re.findall(r"[\"']([^\"']+?)\.workspace", " ".join(args), flags=re.I)}
+    cited = workspaces_citados(args)
     allowed_ws = target_workspaces(root)
     if allowed_ws is None:
         # Antes da entrevista: só verificação de existência/listagem.
