@@ -27,11 +27,12 @@ MARCA = "<!-- Cópia gerada de .agents/skills/"
 
 
 def com_aviso(texto: str, nome: str) -> str:
+    fim = "\r\n" if "\r\n" in texto else "\n"  # mesmo fim de linha do arquivo (o Git no Windows usa CRLF)
     aviso = (f"{MARCA}{nome}/SKILL.md por scripts/sincronizar_skills.py. "
-             "Edite a fonte, não esta cópia. -->\n")
+             f"Edite a fonte, não esta cópia. -->{fim}")
     m = re.match(r"---\r?\n.*?\r?\n---\r?\n", texto, flags=re.S)
     if not m:  # sem frontmatter reconhecível: o aviso vai ao final para não quebrá-lo
-        return texto.rstrip("\r\n") + "\n\n" + aviso
+        return texto.rstrip("\r\n") + fim * 2 + aviso
     return texto[:m.end()] + aviso + texto[m.end():]
 
 
@@ -47,6 +48,11 @@ def esperado(destino: Path) -> dict[Path, bytes]:
                 dados = com_aviso(dados.decode("utf-8"), skill.name).encode("utf-8")
             out[destino / arq.relative_to(FONTE)] = dados
     return out
+
+
+def lf(dados: bytes) -> bytes:
+    """Compara ignorando CRLF × LF: o Git converte o fim de linha no checkout e isso não é diferença."""
+    return dados.replace(b"\r\n", b"\n")
 
 
 def geradas(destino: Path) -> list[Path]:
@@ -70,7 +76,7 @@ def main() -> None:
         alvo = esperado(destino)
         nomes_fonte = {p.relative_to(destino).parts[0] for p in alvo}
         sobras = [p for p in geradas(destino) if p.name not in nomes_fonte]
-        mudados = [p for p, dados in alvo.items() if not p.exists() or p.read_bytes() != dados]
+        mudados = [p for p, dados in alvo.items() if not p.exists() or lf(p.read_bytes()) != lf(dados)]
         extras = [p for skill in geradas(destino) if skill.name in nomes_fonte
                   for p in skill.rglob("*") if p.is_file() and p not in alvo]
         rel = lambda p: p.relative_to(RAIZ).as_posix()  # noqa: E731

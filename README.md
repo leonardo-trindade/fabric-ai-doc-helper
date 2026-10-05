@@ -207,16 +207,28 @@ trocar a conta logada, o projeto real detecta e pede para refazer o login.
 
 Ciclo: branch → alterar → testar no app (dev) com um projeto em `C:\Fabric-teste` → PR → merge → publicar.
 
+### Testes
+```powershell
+uv run --group dev pytest              # tudo (~1 min)
+uv run --group dev pytest -m "not lento"   # sem os testes que criam ambiente Python
+```
+Cobrem a guarda, os scripts, o app e as próprias instruções do assistente (skills e scripts citados
+existem, cópias das skills em dia, limite de linhas do AGENTS.md, hooks configurados, CHANGELOG).
+Rodam no GitHub Actions em todo PR (`.github/workflows/ci.yml`). `tests/` e `dev/` ficam só no
+código-fonte: não vão para as pastas de projeto, e o pytest não é instalado nelas.
+
 ### Publicar uma versão
-1. Num branch, acrescente a seção da versão no topo do `CHANGELOG.md` e faça o merge por PR
-   (a `main` é protegida: só aceita PR).
-2. Na `main` atualizada, crie e envie a tag:
+1. Num branch, acrescente a seção `## vX.Y.Z — AAAA-MM-DD` no topo do `CHANGELOG.md` e faça o
+   merge por PR (a `main` é protegida: só aceita PR, com os testes passando).
+2. Na `main` atualizada, com o modo manutenção ligado:
    ```powershell
    git switch main
    git pull
-   git tag -a v2.1.0 -m "v2.1.0"
-   git push origin v2.1.0
+   uv run python dev/publicar_versao.py v2.2.0 --release
    ```
+   O script só cria a tag se o commit local for o da `main` do GitHub, se a versão for maior que a
+   última e se o CHANGELOG tiver a seção dela. Ele mostra o commit e as notas e pede confirmação.
+   Com `--release`, cria também a página de release.
 3. Pronto: os apps instalados avisam a nova versão na próxima abertura. Tags `v*` são
    protegidas: depois de publicadas não podem ser apagadas nem movidas (correção = nova versão).
 
@@ -244,6 +256,9 @@ CLAUDE.md                   importa o AGENTS.md + notas do Claude Code
 README.md                   este guia
 instalar.ps1                instalador do app (uv, download da versão, ambiente e atalhos)
 CHANGELOG.md                novidades de cada versão publicada (mostradas pelo app ao atualizar)
+tests/                      testes (pytest) do harness, do app e das instruções — só no código-fonte
+dev/publicar_versao.py      publica uma versão com as conferências (main atualizada, CHANGELOG)
+.github/workflows/ci.yml    roda os testes em todo PR
 app/                        app Fabric Doc Helper: main.py (interface) e servicos.py (projetos,
                             harness, ferramentas, versões). Não vai para as pastas de projeto
 pyproject.toml / uv.lock    dependências (Python 3.12, ms-fabric-cli…)

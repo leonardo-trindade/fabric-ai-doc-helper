@@ -51,18 +51,21 @@ def login_navegador(tenant: str) -> None:
     # O login pede 3 tokens (Fabric, OneLake, Azure) e cada um que não sai em silêncio abre a
     # janela de escolha de conta de novo. Só o do Fabric pode abrir a janela; OneLake e Azure
     # são tentados em silêncio com o mesmo login (o Azure nem é usado pelo projeto).
-    original = FabAuth.get_access_token
+    # FabAuth é um singleton (FabAuth() devolve sempre a mesma instância, a que o `fab auth login`
+    # usa): a troca é feita nessa instância, não na classe.
+    auth = FabAuth()
+    original = auth.get_access_token
 
-    def um_login_so(self, scope, interactive_renew=True):
+    def um_login_so(scope, interactive_renew=True):
         if scope == fab_constant.SCOPE_FABRIC_DEFAULT:
-            return original(self, scope, interactive_renew)
+            return original(scope, interactive_renew)
         try:
-            return original(self, scope, interactive_renew=False)
+            return original(scope, interactive_renew=False)
         except Exception:  # noqa: BLE001  (sem token silencioso: explicar_tokens() avisa)
             return None
 
     fab_ui.prompt_select_item = escolher_navegador
-    FabAuth.get_access_token = um_login_so
+    auth.get_access_token = um_login_so
     sys.argv = ["fab", "auth", "login", *(["--tenant", tenant] if tenant else [])]
     fab_main.main()
 
