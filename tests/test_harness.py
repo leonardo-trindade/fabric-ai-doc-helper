@@ -51,7 +51,8 @@ def test_projeto_sem_git_e_so_com_o_harness(app_dev):
         assert not (d / fora).exists(), fora
     assert not (d / ".agents" / "MANUTENCAO").exists()
     for dentro in ("AGENTS.md", "CLAUDE.md", ".claude/settings.json", ".agents/skills", "scripts/guarda.py",
-                   "scripts/escolher_workspace.py", "templates", "LEIA-ME.md", "projeto/projeto.yaml"):
+                   "scripts/escolher_workspace.py", "scripts/verificar_documento.py",
+                   ".claude/agents/revisor-documento.md", "templates", "LEIA-ME.md", "projeto/projeto.yaml"):
         assert (d / dentro).exists(), dentro
     marcador = s.ler_marcador(d)
     assert marcador["id"] == p.id and marcador["versao"].startswith("dev") and len(marcador["arquivos"]) > 20

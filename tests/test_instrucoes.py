@@ -14,7 +14,9 @@ from conftest import RAIZ
 
 AGENTS = RAIZ / "AGENTS.md"
 FONTE_SKILLS = RAIZ / ".agents" / "skills"
-INSTRUCOES = [AGENTS, RAIZ / "CLAUDE.md", *sorted(FONTE_SKILLS.glob("*/SKILL.md"))]
+SUBAGENTES = sorted((RAIZ / ".claude" / "agents").glob("*.md"))
+INSTRUCOES = [AGENTS, RAIZ / "CLAUDE.md", *sorted(FONTE_SKILLS.glob("*/SKILL.md")), *SUBAGENTES]
+FERRAMENTAS_DE_LEITURA = {"Read", "Grep", "Glob"}
 ORCAMENTO_AGENTS = 115  # linhas: carregado em toda conversa; reduzir com o tempo, nunca aumentar sem motivo
 
 
@@ -56,6 +58,22 @@ def test_scripts_citados_existem(arquivo):
 def test_skills_citadas_existem(arquivo):
     citadas = set(re.findall(r"skill `([a-z0-9-]+)`", arquivo.read_text(encoding="utf-8")))
     assert citadas <= skills_da_tabela()
+
+
+@pytest.mark.parametrize("arquivo", SUBAGENTES, ids=lambda p: p.stem)
+def test_subagente_so_le(arquivo):
+    """Subagentes revisam; quem escreve é a conversa principal. Sem `tools:` herdariam tudo."""
+    m = re.match(r"---\n(.*?)\n---\n", arquivo.read_text(encoding="utf-8"), re.S)
+    campos = dict(linha.split(":", 1) for linha in m.group(1).splitlines() if ":" in linha)
+    assert campos["name"].strip() == arquivo.stem
+    ferramentas = {f.strip() for f in campos["tools"].split(",")}
+    assert ferramentas <= FERRAMENTAS_DE_LEITURA, f"{arquivo.stem}: {ferramentas - FERRAMENTAS_DE_LEITURA}"
+
+
+@pytest.mark.parametrize("arquivo", INSTRUCOES, ids=lambda p: p.relative_to(RAIZ).as_posix())
+def test_subagentes_citados_existem(arquivo):
+    citados = set(re.findall(r"subagente `([a-z0-9-]+)`", arquivo.read_text(encoding="utf-8")))
+    assert citados <= {p.stem for p in SUBAGENTES}
 
 
 def test_orcamento_do_agents_md():

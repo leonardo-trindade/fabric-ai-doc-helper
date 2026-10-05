@@ -6,4 +6,5 @@
 - Skills: carregadas de `.claude/skills/` (cópia gerada; ver AGENTS.md → Skills).
 - Guarda: hook PreToolUse em `.claude/settings.json` → `scripts/adaptadores/claude_code.py`.
 - Entrevista: use a ferramenta de perguntas (AskUserQuestion).
+- Revisão do documento: subagente `revisor-documento` (`.claude/agents/`), só leitura.
 - MCP `microsoft-learn`: configurado em `.mcp.json`.

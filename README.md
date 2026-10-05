@@ -101,7 +101,7 @@ Dica: em planilhas com abas de uso interno, diga ao assistente quais abas **não
 |---|---|---|
 | 1 | *"levante o workspace"* | Inventário de metadados em `projeto/inventario/` (itens, tabelas, colunas da camada de consumo). Notebooks e pipelines são lidos **na tela**, sem cópia; segredos aparecem mascarados |
 | 2 | *"analise a arquitetura"* | Resumo da arquitetura e pontos de atenção; o assistente confirma dúvidas com você |
-| 3 | *"gere a documentação"* | Documento em `projeto/docs/DT_<cliente>_<projeto>_v0.1.docx` |
+| 3 | *"gere a documentação"* | Especificação com a fonte de cada seção → **verificação automática** (estrutura, segredos/IDs, itens e tabelas × inventário, dicionário × colunas) → revisão independente (no Claude Code, o subagente `revisor-documento`, que só lê) → documento em `projeto/docs/DT_<cliente>_<projeto>_v0.1.docx`, com a lista de pendências `{{...}}` |
 | 4 | Você | Revisão humana no Word e upload manual no Drive |
 
 - O documento gerado **nunca é sobrescrito**; novas versões geram novos arquivos.
@@ -268,6 +268,7 @@ pyproject.toml / uv.lock    dependências (Python 3.12, ms-fabric-cli…)
                             fabric-analise, fabric-documentacao
 .claude/
   settings.json             hook de guarda e permissões do Claude Code
+  agents/revisor-documento.md  subagente de revisão do documento (só leitura)
   skills/                   cópia gerada de .agents/skills (não editar)
 templates/
   template-bluer.docx       identidade visual (fixa)
@@ -286,6 +287,7 @@ scripts/
   _comum.py                 funções compartilhadas
   ler_referencia.py         converte referências (pptx/xlsx/docx/pdf) em texto
   build_doc.py              gera o .docx a partir da especificação
+  verificar_documento.py    confere especificação/.docx antes da entrega (estrutura, sigilo, nomes, fontes)
   editar_docx.py            aplica alterações pontuais em um .docx já revisado
   finalizar_docx.ps1        atualiza sumário no Word e exporta PDF
 projeto/                    (só nas pastas de projeto; ignorado pelo Git) dados do cliente

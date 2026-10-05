@@ -5,7 +5,19 @@ atualização, então escreva para quem usa: o que muda no dia a dia e se é pre
 
 Formato: `## vX.Y.Z — AAAA-MM-DD` (X = muda o jeito de trabalhar · Y = novidade · Z = correção).
 
-## v2.1.2 — 2026-10-06
+## v2.2.0 — 2026-10-05
+Documento conferido antes da entrega.
+- Antes de gerar o Word, o assistente roda uma verificação automática: estrutura fixa das seções,
+  nenhum segredo, ID do ambiente ou conta técnica no texto, todo item e tabela citados existem no
+  workspace, e o dicionário de dados (Apêndice A) bate com as colunas e tipos reais.
+- Cada seção passa a registrar de onde veio o conteúdo (itens lidos e data, inventário, referência
+  ou decisão sua). Isso não aparece no documento, mas permite conferir qualquer afirmação.
+- No Claude Code, um revisor independente (que só lê) confere as afirmações contra o caderno de
+  análise e aponta o que não tem respaldo.
+- A mesma verificação vale para o documento revisado por você no Word (estrutura, sigilo, nomes e
+  pendências).
+
+## v2.1.2 — 2026-10-05
 Correção importante. Atualize assim que o app avisar.
 - O login pelo assistente (trocar de conta ou entrar quando não há login) falhava na v2.1.1 antes
   de abrir a janela da Microsoft. Corrigido: a janela abre uma vez só.
