@@ -5,6 +5,16 @@ atualização, então escreva para quem usa: o que muda no dia a dia e se é pre
 
 Formato: `## vX.Y.Z — AAAA-MM-DD` (X = muda o jeito de trabalhar · Y = novidade · Z = correção).
 
+## v2.3.0 — 2026-10-05
+Novo visual do app, no padrão BlueOps, e acesso direto às versões do documento.
+- Temas escuro e claro, com botão no cabeçalho (começa seguindo o tema do Windows e lembra a escolha).
+- Painel com indicadores (projetos, clientes, aguardando 1ª conversa, com documento, revisados) e
+  menu lateral.
+- Em cada projeto: botão **Abrir documento** com a versão mais nova (a revisada por você tem
+  prioridade) e menu com todas as versões anteriores, com data.
+- Escolha entre VS Code e Claude Desktop com os ícones oficiais; o que não estiver instalado fica
+  indisponível, com o motivo.
+
 ## v2.2.0 — 2026-10-05
 Documento conferido antes da entrega.
 - Antes de gerar o Word, o assistente roda uma verificação automática: estrutura fixa das seções,

@@ -259,8 +259,10 @@ CHANGELOG.md                novidades de cada versão publicada (mostradas pelo 
 tests/                      testes (pytest) do harness, do app e das instruções — só no código-fonte
 dev/publicar_versao.py      publica uma versão com as conferências (main atualizada, CHANGELOG)
 .github/workflows/ci.yml    roda os testes em todo PR
-app/                        app Fabric Doc Helper: main.py (interface) e servicos.py (projetos,
-                            harness, ferramentas, versões). Não vai para as pastas de projeto
+app/                        app Fabric Doc Helper: main.py (interface), marca.py (design system
+                            BlueOps: temas, componentes), icones/ (SVGs oficiais VS Code e Claude,
+                            Simple Icons CC0) e servicos.py (projetos, harness, ferramentas,
+                            versões do app e do documento). Não vai para as pastas de projeto
 pyproject.toml / uv.lock    dependências (Python 3.12, ms-fabric-cli…)
 .mcp.json                   MCP microsoft-learn para o Claude Code
 .agents/

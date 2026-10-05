@@ -78,6 +78,7 @@ class Projeto:
 class Config:
     autor: str = ""
     pasta_padrao: str = PASTA_PADRAO
+    tema: str = "auto"  # auto (segue o Windows) | escuro | claro
     projetos: list[Projeto] = field(default_factory=list)
 
 
@@ -87,7 +88,7 @@ def carregar() -> Config:
     except (FileNotFoundError, json.JSONDecodeError):
         return Config()
     return Config(autor=d.get("autor", ""), pasta_padrao=d.get("pasta_padrao", PASTA_PADRAO),
-                  projetos=[Projeto(**p) for p in d.get("projetos", [])])
+                  tema=d.get("tema", "auto"), projetos=[Projeto(**p) for p in d.get("projetos", [])])
 
 
 def salvar(cfg: Config) -> None:
@@ -382,12 +383,48 @@ def ler_yaml(pasta: Path | str) -> dict:
 
 
 @dataclass
+class DocVersao:
+    arquivo: Path
+    versao: str          # "0.3" (do nome DT_..._v0.3.docx) ou "" se o nome não tiver versão
+    revisado: bool       # salvo pelo usuário em projeto/docs/revisado/
+    modificado: datetime
+
+    @property
+    def rotulo(self) -> str:
+        v = f"v{self.versao}" if self.versao else self.arquivo.stem
+        return v + (" · revisado" if self.revisado else "")
+
+    @property
+    def _ordem(self) -> tuple:
+        num = tuple(int(x) for x in self.versao.split(".")) if self.versao else ()
+        return (num, self.revisado, self.modificado)
+
+
+def documentos(pasta: Path | str) -> list[DocVersao]:
+    """Versões do documento (geradas e revisadas), da mais nova para a mais antiga.
+
+    Mais nova = maior número de versão no nome (_vX.Y); no empate, a revisada pelo usuário (fonte da
+    verdade) e depois a modificada por último. Ignora arquivos temporários do Word (~$...).
+    """
+    base = Path(pasta) / "projeto" / "docs"
+    out = []
+    for revisado, pasta_docs in ((False, base), (True, base / "revisado")):
+        for arq in pasta_docs.glob("*.docx"):
+            if arq.name.startswith("~$"):
+                continue
+            m = re.search(r"_v(\d+(?:\.\d+)*)", arq.stem)
+            out.append(DocVersao(arq, m.group(1) if m else "", revisado,
+                                 datetime.fromtimestamp(arq.stat().st_mtime)))
+    return sorted(out, key=lambda d: d._ordem, reverse=True)
+
+
+@dataclass
 class Estado:
     existe: bool
     etapa: str
     conta: str
     workspace: str
-    documentos: list[Path]
+    documentos: list[DocVersao]
     versao_harness: str = ""
 
 
@@ -397,8 +434,7 @@ def estado(p: Projeto) -> Estado:
         return Estado(False, "Pasta não encontrada", "", "", [])
     y = ler_yaml(pasta)
     proj = pasta / "projeto"
-    docs = sorted((proj / "docs").glob("*.docx"), key=lambda d: d.stat().st_mtime, reverse=True)
-    revisados = sorted((proj / "docs" / "revisado").glob("*.docx"), key=lambda d: d.stat().st_mtime, reverse=True)
+    docs = documentos(pasta)
     if not y:
         etapa = "Configuração pendente"
     elif not y.get("conta_fabric"):
@@ -409,14 +445,21 @@ def estado(p: Projeto) -> Estado:
         etapa = "Inventário pendente"
     elif not (proj / "analise" / "notas.md").is_file():
         etapa = "Análise pendente"
-    elif not docs and not revisados:
+    elif not docs:
         etapa = "Documento pendente"
-    elif revisados:
-        etapa = f"Revisado ({revisados[0].name})"
+    elif docs[0].revisado:
+        etapa = f"Revisado ({docs[0].rotulo.split(' ·')[0]})"
     else:
-        etapa = f"Documento gerado ({docs[0].name})"
-    return Estado(True, etapa, y.get("conta_fabric") or "", y.get("workspace_alvo") or "", revisados + docs,
+        etapa = f"Documento gerado ({docs[0].rotulo})"
+    return Estado(True, etapa, y.get("conta_fabric") or "", y.get("workspace_alvo") or "", docs,
                   ler_marcador(pasta).get("versao", ""))
+
+
+def abrir_documento(doc: DocVersao) -> None:
+    """Abre a versão no programa padrão do Windows para .docx (o Word)."""
+    if not doc.arquivo.is_file():
+        raise FileNotFoundError(f"O arquivo não existe mais: {doc.arquivo}")
+    os.startfile(doc.arquivo)  # noqa: S606  (só arquivos .docx do próprio projeto)
 
 
 def atualizar_projeto(p: Projeto) -> str | None:
