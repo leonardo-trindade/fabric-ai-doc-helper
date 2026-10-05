@@ -88,12 +88,11 @@ def dialogo_novo() -> None:
 
     with ui.dialog() as dlg, ui.card().classes("w-[620px] max-w-full"):
         ui.label("Novo projeto").classes("text-h6")
-        ui.label("Uma pasta por projeto: dados e contexto de um cliente nunca se misturam com os de outro."
+        ui.label("Uma pasta por projeto (um workspace): dados e contexto de um cliente nunca se misturam com "
+                 "os de outro. A conta do Fabric e o workspace são escolhidos na 1ª conversa com o assistente."
                  ).classes("text-sm text-grey-7")
         cliente = ui.input("Cliente *", autocomplete=clientes).classes("w-full")
         projeto = ui.input("Projeto / fase *").classes("w-full")
-        workspace = ui.input("Workspace do Fabric a documentar *",
-                             placeholder="nome exato do workspace (somente leitura)").classes("w-full")
         autor = ui.input("Autor do documento *", value=cfg.autor).classes("w-full")
         with ui.row().classes("w-full items-end no-wrap gap-2"):
             pasta = ui.input("Pasta do projeto *").classes("flex-1")
@@ -121,8 +120,7 @@ def dialogo_novo() -> None:
         progresso = ui.label().classes("text-sm text-primary")
 
         async def criar() -> None:
-            campos = {"Cliente": cliente.value, "Projeto": projeto.value, "Workspace": workspace.value,
-                      "Autor": autor.value, "Pasta": pasta.value}
+            campos = {"Cliente": cliente.value, "Projeto": projeto.value, "Autor": autor.value, "Pasta": pasta.value}
             faltando = [k for k, v in campos.items() if not (v or "").strip()]
             if faltando:
                 ui.notify("Preencha: " + ", ".join(faltando), type="warning")
@@ -134,7 +132,7 @@ def dialogo_novo() -> None:
             try:
                 p = await run.io_bound(
                     s.criar_projeto, s.carregar(), cliente=cliente.value.strip(), projeto=projeto.value.strip(),
-                    workspace=workspace.value.strip(), autor=autor.value.strip(), pasta=pasta.value.strip(),
+                    autor=autor.value.strip(), pasta=pasta.value.strip(),
                     ferramenta=ferr["v"], progresso=lambda m: setattr(progresso, "text", m))
             except Exception as e:  # noqa: BLE001
                 progresso.text = ""
@@ -345,7 +343,7 @@ def cartao(p: s.Projeto, f: s.Ferramentas, versao_app: str) -> None:
             cor = "grey" if not e.existe else ("positive" if e.etapa.startswith(("Revisado", "Documento gerado")) else "primary")
             ui.badge(e.etapa, color=cor).props("outline")
         with ui.column().classes("gap-0 text-sm"):
-            ui.label(f"Workspace: {e.workspace or '—'}")
+            ui.label(f"Workspace: {e.workspace or 'escolhido na 1ª conversa, da lista da conta do cliente'}")
             ui.label(f"Conta: {e.conta or 'confirmada pelo assistente na 1ª conversa'}")
             if e.versao_harness:
                 ui.label(f"Assistente: {e.versao_harness}" + ("" if e.versao_harness == versao_app

@@ -293,7 +293,7 @@ Pasta de projeto criada pelo **Fabric Doc Helper** em {data}.
 """
 
 
-def criar_projeto(cfg: Config, *, cliente: str, projeto: str, workspace: str, autor: str,
+def criar_projeto(cfg: Config, *, cliente: str, projeto: str, autor: str,
                   pasta: str, ferramenta: str, progresso=lambda msg: None) -> Projeto:
     """Cria a pasta do projeto com o harness da versão em uso, o ambiente Python e o projeto.yaml."""
     destino = Path(pasta)
@@ -328,7 +328,8 @@ def criar_projeto(cfg: Config, *, cliente: str, projeto: str, workspace: str, au
         'fase: ""\n'
         f"autor: {_yaml_str(autor)}\n"
         'classificacao: "RESTRITO"\n'
-        f"workspace_alvo: {_yaml_str(workspace)}\n"
+        'workspace_alvo: ""          # escolhido na 1ª conversa (scripts/escolher_workspace.py)\n'
+        'workspace_id: ""\n'
         "workspaces_leitura_extra: []\n"
         'workspace_legado: ""\n'
         'conta_fabric: ""\n'
@@ -398,10 +399,12 @@ def estado(p: Projeto) -> Estado:
     proj = pasta / "projeto"
     docs = sorted((proj / "docs").glob("*.docx"), key=lambda d: d.stat().st_mtime, reverse=True)
     revisados = sorted((proj / "docs" / "revisado").glob("*.docx"), key=lambda d: d.stat().st_mtime, reverse=True)
-    if not y or not y.get("workspace_alvo"):
+    if not y:
         etapa = "Configuração pendente"
     elif not y.get("conta_fabric"):
         etapa = "Conta a confirmar na 1ª conversa"
+    elif not y.get("workspace_alvo"):
+        etapa = "Workspace a escolher na 1ª conversa"
     elif not any((proj / "inventario").glob("*.json")):
         etapa = "Inventário pendente"
     elif not (proj / "analise" / "notas.md").is_file():

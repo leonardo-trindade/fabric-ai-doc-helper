@@ -38,6 +38,13 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
+
+# Saída sempre em UTF-8: no Windows, quando a saída vai para outro programa (o assistente, um hook),
+# o Python usa cp1252 e os acentos chegam como "�" (ou o script quebra ao escrever um caractere
+# fora do cp1252). Todos os scripts e adaptadores importam este módulo, então vale para todos.
+for _fluxo in (sys.stdout, sys.stderr):
+    if _fluxo is not None and hasattr(_fluxo, "reconfigure"):
+        _fluxo.reconfigure(encoding="utf-8", errors="replace")
 MANUTENCAO = Path(".agents") / "MANUTENCAO"
 
 

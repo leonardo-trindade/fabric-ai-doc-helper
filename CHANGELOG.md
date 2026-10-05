@@ -5,13 +5,21 @@ atualização, então escreva para quem usa: o que muda no dia a dia e se é pre
 
 Formato: `## vX.Y.Z — AAAA-MM-DD` (X = muda o jeito de trabalhar · Y = novidade · Z = correção).
 
-## v2.0.2 — 2026-10-05
-Correção. Atualize se o seu workspace tem espaço no nome.
+## v2.1.0 — 2026-10-05
+Novo jeito de escolher o workspace, e correções no login e na guarda.
+- **Workspace escolhido numa lista:** o app não pede mais o nome do workspace. Na 1ª conversa,
+  depois de confirmar a conta, o assistente lista os workspaces dessa conta e você escolhe qual
+  documentar. O nome é gravado exatamente como está no Fabric, com o ID; se o workspace for
+  renomeado depois, o assistente percebe e pergunta antes de atualizar.
+- Um projeto documenta um único workspace; para documentar outro (prod, outro ambiente), crie
+  outro projeto no app.
 - Workspaces com espaço, `#`, aspas ou vírgula no nome eram bloqueados pela guarda como "não
   autorizados". Agora o nome é lido inteiro, seja qual for.
 - Ao trocar de conta, a janela de login da Microsoft abre uma vez só (antes podia abrir duas).
 - Se algum token secundário não vier no login, o aviso explica o que isso afeta (o do Azure não é
   usado neste projeto).
+- A verificação no início da conversa podia falhar no Windows por causa de acentos, e o assistente
+  lia "�" no lugar de letras acentuadas. Corrigido.
 
 ## v2.0.1 — 2026-10-03
 Ajustes nas instruções do assistente. Nada muda no seu dia a dia.

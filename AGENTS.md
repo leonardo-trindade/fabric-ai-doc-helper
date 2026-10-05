@@ -16,7 +16,7 @@ Instruções específicas de uma ferramenta ficam no arquivo dela (ex.: `CLAUDE.
    `uv run python scripts/verificar_login.py`. Conta confirmada é registrada no projeto
    (`--registrar`); conta errada → peça permissão e rode `uv run python scripts/entrar.py --trocar`
    (detalhes na skill `iniciar-projeto`, Passo 1). Não acesse o Fabric antes disso.
-2. Se `projeto/projeto.yaml` não existe ou está sem `conta_fabric`: rode a skill
+2. Se `projeto/projeto.yaml` não existe ou está sem `conta_fabric` ou `workspace_alvo`: rode a skill
    `iniciar-projeto` (ela não repete o que o app já preencheu). Se está completo: confirme em
    uma linha ("Continuando: <cliente> · <projeto> · workspace <alvo> · conta <conta>. Algo
    mudou?"). Não entreviste de novo.
@@ -44,7 +44,8 @@ As skills ficam em **`.agents/skills/<nome>/SKILL.md`** (formato aberto Agent Sk
   leituras de itens para arquivo. Definições são lidas na tela (`scripts/ler_item.py`) e só o
   necessário para o documento.
 - **Somente o workspace do projeto** (`workspace_alvo` e, se autorizados,
-  `workspaces_leitura_extra` do projeto.yaml).
+  `workspaces_leitura_extra` do projeto.yaml). Quem escolhe é o usuário, numa lista
+  (`scripts/escolher_workspace.py`); nunca deduza pelo nome (dev, prod…) nem digite o nome à mão.
 - **Somente esta pasta.** Não leia nem grave fora dela (exceto a área temporária
   da própria ferramenta). Não leia `~/.config/fab`, `~/.ssh`, `~/.azure` nem `.env`.
 - **Login só pelo navegador, conta só com permissão.** Login: `uv run python scripts/entrar.py`

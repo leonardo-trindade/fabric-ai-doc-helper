@@ -47,27 +47,37 @@ uv run python scripts/verificar_login.py
 Use a ferramenta de perguntas quando disponível; senão, um único bloco numerado em texto.
 Não invente respostas.
 
-**Obrigatórias:** 1) nome do cliente · 2) nome do projeto/fase · 3) workspace alvo do Fabric
-(somente leitura) · 4) autor do documento.
+**Obrigatórias:** 1) nome do cliente · 2) nome do projeto/fase · 3) autor do documento ·
+4) workspace a documentar (escolhido na lista, abaixo).
 
-**Opcionais** (aceite "pular"): 5) participantes e papéis · 6) workspace legado (comparativo;
-pergunte se o assistente pode LÊ-lo — só entra em `workspaces_leitura_extra` com "sim" explícito)
-· 7) itens do escopo, se não houver levantamento · 8) renomeações de nomenclatura
-· 9) classificação (padrão RESTRITO).
+**Workspace (sempre escolhido pelo usuário, numa lista; nunca digitado nem deduzido):**
+o nome não indica o ambiente (dev, prod…) e cada cliente nomeia do seu jeito; quem decide qual
+documentar é o usuário. Com a conta já registrada (Passo 1):
+1. `uv run python scripts/escolher_workspace.py --listar` (lista nomes da conta do projeto).
+2. Peça a escolha: até 4 workspaces, como opções da ferramenta de perguntas; mais que isso, mostre
+   a lista numerada e peça o número (ofereça `--filtro <texto>` se a lista for longa).
+3. Grave: `uv run python scripts/escolher_workspace.py --definir <nº>` (nome exato + ID).
+Um projeto documenta um único workspace. Se o usuário quiser documentar outro, oriente criar um
+novo projeto no app. Não liste o conteúdo de nenhum workspace antes da escolha.
 
-Verificações:
-- Workspace: `uv run python scripts/fab_ro.py exists "<workspace>.Workspace"`. Se `false`, mostre `uv run python scripts/fab_ro.py ls`
-  e peça o nome correto. Não liste o conteúdo de outros workspaces.
-- Referências opcionais: liste `projeto/referencias/`; para cada arquivo pergunte o papel
-  (levantamento | mapeamento | outro) e, em planilhas, quais abas considerar. Pasta vazia:
-  informe que são opcionais e siga.
+**Opcionais** (aceite "pular"): 5) participantes e papéis · 6) workspace de comparação, ex.: legado
+(escolhido na mesma lista; pergunte se o assistente pode LÊ-lo e só grave com "sim" explícito:
+`escolher_workspace.py --extra <nº>`) · 7) itens do escopo, se não houver levantamento
+· 8) renomeações de nomenclatura · 9) classificação (padrão RESTRITO).
 
-**Projeto criado pelo app** (projeto.yaml com cliente/projeto/workspace/autor preenchidos e
-`conta_fabric` vazia): não repita as obrigatórias. Confirme o workspace com `exists`, faça o
-Passo 1 (registrar a conta) e ofereça as opcionais em uma única pergunta (aceite "pular").
+Referências opcionais: liste `projeto/referencias/`; para cada arquivo pergunte o papel
+(levantamento | mapeamento | outro) e, em planilhas, quais abas considerar. Pasta vazia:
+informe que são opcionais e siga.
 
-Se projeto.yaml JÁ existe e a conta está registrada: não entreviste. Leia-o, faça o Passo 1 e
+**Projeto criado pelo app** (projeto.yaml com cliente/projeto/autor preenchidos, sem conta e sem
+workspace): não repita essas perguntas. Faça o Passo 1 (registrar a conta), a escolha do
+workspace e ofereça as opcionais em uma única pergunta (aceite "pular").
+
+Se projeto.yaml JÁ existe com conta e workspace: não entreviste. Leia-o, faça o Passo 1 e
 confirme em uma linha ("Continuando: <cliente> · <projeto> · workspace <alvo> · conta <conta>. Algo mudou?").
+Se um comando disser que o workspace não foi encontrado, rode `escolher_workspace.py --conferir`:
+`RENOMEADO` → confirme com o usuário e rode `--renomeado`; `NÃO ENCONTRADO` → pare e pergunte ao
+usuário (acesso removido, workspace apagado ou conta errada).
 
 **Outro cliente na mesma pasta:** se pedirem para iniciar um cliente diferente do registrado,
 recuse: cada pasta é de um único projeto. Oriente criar um novo projeto no app Fabric Doc Helper.
@@ -94,7 +104,8 @@ projeto: "<nome do projeto>"
 fase: "<fase ou vazio>"
 autor: "<autor>"
 classificacao: "RESTRITO"
-workspace_alvo: "<workspace>"
+workspace_alvo: "<gravado por escolher_workspace.py --definir>"
+workspace_id: "<gravado por escolher_workspace.py --definir>"
 workspaces_leitura_extra: []
 workspace_legado: ""
 conta_fabric: "<registrado por verificar_login.py --registrar>"

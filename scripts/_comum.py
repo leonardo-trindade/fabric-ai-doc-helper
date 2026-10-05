@@ -66,13 +66,14 @@ def json_da_saida(txt: str):
     return json.loads(txt[i:]) if i >= 0 else {}
 
 
-def config() -> dict:
+def config(exigir_workspace: bool = True) -> dict:
     cfg = PROJETO / "projeto.yaml"
     if not cfg.exists():
         sys.exit("projeto/projeto.yaml não existe. Faça a entrevista inicial (skill iniciar-projeto).")
     dados = yaml.safe_load(cfg.read_text(encoding="utf-8")) or {}
-    if not (dados.get("workspace_alvo") or "").strip():
-        sys.exit("`workspace_alvo` não definido em projeto/projeto.yaml.")
+    if exigir_workspace and not (dados.get("workspace_alvo") or "").strip():
+        sys.exit("Workspace ainda não escolhido. Rode `uv run python scripts/escolher_workspace.py --listar` "
+                 "e peça ao usuário para escolher (skill iniciar-projeto, Passo 2).")
     return dados
 
 
