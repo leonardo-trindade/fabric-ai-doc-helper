@@ -361,6 +361,22 @@ def fab_invocations(cmd: str) -> list[list[str]]:
     return out
 
 
+WS_NO_CAMINHO = re.compile(r"(?:^|/)([^/]+?)\.workspace(?=/|$)", re.I)
+
+
+def workspaces_citados(args: list[str]) -> set[str]:
+    """Workspaces citados (padrão `Nome.Workspace[/...]`), analisando cada argumento separadamente:
+    o nome pode ter espaços (`"WS Fabric-Dev.Workspace/x.Lakehouse"` chega como um argumento só).
+    Um argumento que cita `.Workspace` fora desse padrão é bloqueado, para não passar sem conferência."""
+    cited: set[str] = set()
+    for a in args:
+        achados = WS_NO_CAMINHO.findall(a.strip().strip("\"'"))
+        if not achados and re.search(r"\.workspace\b", a, re.I):
+            raise Bloqueio(f"caminho de workspace não reconhecido: {a!r}. Use `Nome.Workspace/Item.Tipo`.")
+        cited |= {w.strip().lower() for w in achados}
+    return cited
+
+
 def verificar_fab(args: list[str], root: Path = RAIZ) -> None:
     """Valida os argumentos de uma chamada ao Fabric CLI (sem o `fab` inicial)."""
     if not args:
@@ -385,9 +401,7 @@ def verificar_fab(args: list[str], root: Path = RAIZ) -> None:
             raise Bloqueio("`fab api` com método diferente de GET: o projeto é somente leitura.")
     if first == "config":
         return
-    # Workspaces citados no comando (padrão Nome.Workspace)
-    cited = {w.lower() for w in re.findall(r"([^\s\"'/]+?)\.workspace\b", " ".join(args), flags=re.I)}
-    cited |= {w.lower() for w in re.findall(r"[\"']([^\"']+?)\.workspace", " ".join(args), flags=re.I)}
+    cited = workspaces_citados(args)
     allowed_ws = target_workspaces(root)
     if allowed_ws is None:
         # Antes da entrevista: só verificação de existência/listagem.

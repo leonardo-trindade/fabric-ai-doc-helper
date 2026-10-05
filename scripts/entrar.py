@@ -17,6 +17,7 @@ O login fica pendente até o usuário concluir no navegador (até alguns minutos
 from __future__ import annotations
 
 import argparse
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -50,6 +51,19 @@ def login_navegador(tenant: str) -> None:
     fab_main.main()
 
 
+def explicar_tokens() -> None:
+    """O `fab auth login` pede três tokens (Fabric, OneLake/Storage, Azure). Se o 2º ou o 3º falhar,
+    ele mostra "Failed to get access token" mesmo com o login do Fabric válido. Diz o que importa."""
+    status = fab("auth", "status", check=False)
+    tem = lambda rotulo: bool(re.search(rf"{rotulo}:\s*(?!N/A)\S", status))  # noqa: E731
+    if not tem("Token Storage"):
+        print("Aviso: o login do Fabric está ativo, mas o token do OneLake (Storage) não foi obtido. "
+              "Listar tabelas e arquivos dos Lakehouses pode falhar; se falhar, rode o login de novo.")
+    if not tem("Token Azure"):
+        print("Obs.: o token do Azure não foi obtido (aviso \"Failed to get access token\"). "
+              "Ele não é usado neste projeto; pode ignorar.")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--trocar", action="store_true", help="faz logout da conta atual antes do login")
@@ -77,6 +91,7 @@ def main() -> None:
     if not sessao_fab()["logado"]:
         print("O login não foi concluído (janela fechada ou cancelada). Rode de novo quando o usuário estiver pronto.")
         sys.exit(3)
+    explicar_tokens()
     sys.exit(subprocess.run([sys.executable, str(Path(__file__).with_name("verificar_login.py"))]).returncode)
 
 

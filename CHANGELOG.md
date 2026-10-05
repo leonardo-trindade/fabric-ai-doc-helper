@@ -5,6 +5,13 @@ atualização, então escreva para quem usa: o que muda no dia a dia e se é pre
 
 Formato: `## vX.Y.Z — AAAA-MM-DD` (X = muda o jeito de trabalhar · Y = novidade · Z = correção).
 
+## v2.0.2 — 2026-10-05
+Correção. Atualize se o seu workspace tem espaço no nome.
+- Workspaces com espaço no nome (ex.: `WS Fabric-Dev`) eram bloqueados pela guarda como "não
+  autorizados". Agora o nome é lido inteiro.
+- Depois do login, o aviso "Failed to get access token" passa a vir explicado: em geral é o token
+  do Azure, que este projeto não usa.
+
 ## v2.0.1 — 2026-10-03
 Ajustes nas instruções do assistente. Nada muda no seu dia a dia.
 - Instruções atualizadas para o formato da v2: a pasta de projeto não é repositório, e
