@@ -1,4 +1,4 @@
-"""App: versões do documento (botão principal + menu de versões anteriores) e tema salvo."""
+"""App: versões do documento (botão principal + menu de versões anteriores)."""
 from __future__ import annotations
 
 import os
@@ -53,29 +53,24 @@ def projeto_registrado(tmp_path, monkeypatch):
     return s.Projeto(id="1", cliente="C", projeto="P", pasta=str(pasta))
 
 
-def test_etapa_segue_a_versao_mais_nova(projeto_registrado):
+def test_estado_lista_versoes_da_mais_nova(projeto_registrado):
     pasta = Path(projeto_registrado.pasta)
-    assert s.estado(projeto_registrado).etapa == "Documento pendente"
-    docx(pasta, "DT_v0.1.docx", idade_dias=2)
-    assert s.estado(projeto_registrado).etapa == "Documento gerado (v0.1)"
-    docx(pasta, "DT_v0.1.docx", revisado=True, idade_dias=1)
-    assert s.estado(projeto_registrado).etapa == "Revisado (v0.1)"
-    docx(pasta, "DT_v0.2.docx")  # nova versão gerada a partir do revisado
     e = s.estado(projeto_registrado)
-    assert e.etapa == "Documento gerado (v0.2)" and [d.rotulo for d in e.documentos][:2] == ["v0.2", "v0.1 · revisado"]
+    assert (e.existe, e.conta, e.workspace, e.documentos) == (True, "x@y", "WS", [])
+    docx(pasta, "DT_v0.1.docx", idade_dias=2)
+    docx(pasta, "DT_v0.1.docx", revisado=True, idade_dias=1)
+    docx(pasta, "DT_v0.2.docx")  # nova versão gerada a partir do revisado
+    assert [d.rotulo for d in s.estado(projeto_registrado).documentos] == ["v0.2", "v0.1 · revisado", "v0.1"]
+
+
+def test_pasta_sumiu(tmp_path):
+    e = s.estado(s.Projeto(id="1", cliente="C", projeto="P", pasta=str(tmp_path / "sumiu")))
+    assert not e.existe and e.documentos == [] and e.referencias == []
 
 
 def test_abrir_documento_inexistente(tmp_path):
     with pytest.raises(FileNotFoundError):
         s.abrir_documento(s.DocVersao(tmp_path / "sumiu.docx", "0.1", False, s.datetime.now()))
-
-
-def test_tema_salvo(projeto_registrado):
-    cfg = s.carregar()
-    assert cfg.tema == "auto"
-    cfg.tema = "escuro"
-    s.salvar(cfg)
-    assert s.carregar().tema == "escuro"
 
 
 def test_icones_oficiais():

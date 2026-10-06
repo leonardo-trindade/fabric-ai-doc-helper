@@ -65,9 +65,11 @@ novo projeto no app. Não liste o conteúdo de nenhum workspace antes da escolha
 `escolher_workspace.py --extra <nº>`) · 7) itens do escopo, se não houver levantamento
 · 8) renomeações de nomenclatura · 9) classificação (padrão RESTRITO).
 
-Referências opcionais: liste `projeto/referencias/`; para cada arquivo pergunte o papel
-(levantamento | mapeamento | outro) e, em planilhas, quais abas considerar. Pasta vazia:
-informe que são opcionais e siga.
+Referências opcionais: liste `projeto/referencias/`. Arquivos anexados pelo app (botão "Anexar
+referência") já estão em `projeto.yaml → referencias` com o `tipo` (levantamento | mapeamento |
+outro): não pergunte o papel de novo. Para arquivos sem registro, pergunte o papel; em planilhas,
+pergunte quais abas considerar. Pasta vazia: informe que são opcionais (o usuário pode anexá-las
+pelo app a qualquer momento) e siga.
 
 **Projeto criado pelo app** (projeto.yaml com cliente/projeto/autor preenchidos, sem conta e sem
 workspace): não repita essas perguntas. Faça o Passo 1 (registrar a conta), a escolha do

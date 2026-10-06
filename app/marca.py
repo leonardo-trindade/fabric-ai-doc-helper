@@ -1,4 +1,4 @@
-"""Identidade visual do app (mesmo design system do BlueOps): tokens de cor dos temas escuro e claro,
+"""Identidade visual do app: tokens de cor do tema (único, escuro/azul),
 tipografia, componentes (cartões, rótulos, botões, menus) e os ícones das ferramentas.
 
 Ícones: SVGs oficiais das marcas, do Simple Icons (https://simpleicons.org, CC0), com as cores das
@@ -31,31 +31,35 @@ def icone(chave: str) -> str:
     return "img:data:image/svg+xml;base64," + base64.b64encode(SVG_FERRAMENTA[chave].encode()).decode()
 
 
+# Marca própria do app: folha de documento com a dobra no canto e um traço de "fluxo" (dados que viram
+# documento), num quadrado com gradiente azul → verde-água. Serve de logo e de ícone da janela.
+LOGO_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true">'
+    '<defs><linearGradient id="fdh-g" x1="0" y1="0" x2="1" y2="1">'
+    '<stop offset="0" stop-color="#2563eb"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs>'
+    '<rect width="32" height="32" rx="8" fill="url(#fdh-g)"/>'
+    '<path d="M10 7h8.5L23 11.5V24a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z" fill="#fff"/>'
+    '<path d="M18.5 7v4.5H23" fill="#cfe3fb"/>'
+    '<path d="M12 16.5h3l1.6-2.6 2 5 1.4-2.4H21" fill="none" stroke="#2563eb" stroke-width="1.6" '
+    'stroke-linecap="round" stroke-linejoin="round"/>'
+    '<path d="M12 21.5h7" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round"/>'
+    '</svg>')
+
 FONTES = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
           '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" '
           'rel="stylesheet">')
 
 CSS = """
 :root {
-  --fdh-bg: #f5f7fa; --fdh-chrome: #ffffff; --fdh-surface: #ffffff; --fdh-surface-2: #f8fafc;
-  --fdh-border: #e2e8f0; --fdh-border-strong: #cbd5e1;
-  --fdh-text: #0f172a; --fdh-muted: #64748b; --fdh-faint: #94a3b8;
-  --fdh-primary: #1a91e3; --fdh-primary-hover: #1680cb; --fdh-primary-soft: #d7ecfb; --fdh-on-primary: #ffffff;
-  --fdh-teal: #14b8a6;
-  --fdh-ok: #16a34a; --fdh-ok-soft: #dcfce7; --fdh-warn: #ea7a1a; --fdh-warn-soft: #fdebd8;
-  --fdh-danger: #dc4a5a; --fdh-danger-soft: #fbe2e5;
-  --fdh-shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 1px 3px rgba(15, 23, 42, .04);
-  --fdh-shadow-lg: 0 10px 30px rgba(15, 23, 42, .12);
-  --fdh-radius: 8px; --fdh-radius-sm: 6px;
-}
-body.body--dark {
   --fdh-bg: #0b1220; --fdh-chrome: #0b1220; --fdh-surface: #111a2b; --fdh-surface-2: #0f1726;
   --fdh-border: #222e42; --fdh-border-strong: #334155;
   --fdh-text: #f1f5f9; --fdh-muted: #94a3b8; --fdh-faint: #64748b;
-  --fdh-primary: #1d9bf0; --fdh-primary-hover: #42abf3; --fdh-primary-soft: rgba(29, 155, 240, .14);
+  --fdh-primary: #1d9bf0; --fdh-primary-hover: #42abf3; --fdh-primary-soft: rgba(29, 155, 240, .14); --fdh-on-primary: #ffffff;
+  --fdh-teal: #14b8a6;
   --fdh-ok: #34d399; --fdh-ok-soft: rgba(52, 211, 153, .14); --fdh-warn: #fb923c; --fdh-warn-soft: rgba(251, 146, 60, .14);
   --fdh-danger: #f87171; --fdh-danger-soft: rgba(248, 113, 113, .14);
   --fdh-shadow: 0 1px 2px rgba(0, 0, 0, .35); --fdh-shadow-lg: 0 12px 32px rgba(0, 0, 0, .5);
+  --fdh-radius: 8px; --fdh-radius-sm: 6px;
 }
 
 body { background: var(--fdh-bg) !important; color: var(--fdh-text);
@@ -65,8 +69,10 @@ body { background: var(--fdh-bg) !important; color: var(--fdh-text);
 /* Cabeçalho e barra lateral */
 .fdh-header { background: var(--fdh-chrome) !important; color: var(--fdh-text) !important;
               border-bottom: 1px solid var(--fdh-border); box-shadow: none !important; }
-.fdh-logo { font-weight: 900; font-size: 20px; letter-spacing: -.02em; line-height: 1; white-space: nowrap; }
-.fdh-logo .azul { color: var(--fdh-primary); }
+.fdh-logo { display: flex; align-items: center; gap: 10px; white-space: nowrap; line-height: 1; }
+.fdh-logo svg { flex: none; display: block; }
+.fdh-logo .nome { font-size: 17px; font-weight: 700; letter-spacing: -.01em; color: var(--fdh-text); }
+.fdh-logo .nome span { font-weight: 400; color: var(--fdh-muted); }
 .fdh-drawer { background: var(--fdh-chrome) !important; border-right: 1px solid var(--fdh-border) !important; }
 .fdh-nav { display: flex; width: 100%; align-items: center; gap: 12px; padding: 9px 12px; border-radius: var(--fdh-radius);
            color: var(--fdh-muted); font-size: 13.5px; font-weight: 500; cursor: pointer; user-select: none;
@@ -95,12 +101,10 @@ body { background: var(--fdh-bg) !important; color: var(--fdh-text);
               border: 1px solid var(--fdh-border); border-radius: var(--fdh-radius) !important;
               box-shadow: var(--fdh-shadow) !important; transition: border-color .15s, box-shadow .15s; }
 .fdh-cartao.interativo:hover { border-color: var(--fdh-border-strong); box-shadow: var(--fdh-shadow-lg) !important; }
-.fdh-kpi { position: relative; padding: 12px 14px; min-height: 66px; }
-.fdh-ponto { position: absolute; top: 12px; right: 12px; width: 6px; height: 6px; border-radius: 50%; }
 .fdh-faixa { border: 1px solid var(--fdh-warn); background: var(--fdh-warn-soft); color: var(--fdh-text);
              border-radius: var(--fdh-radius); padding: 10px 14px; font-size: 12.5px; }
 
-/* Selos (etapa do projeto) */
+/* Selos (versão, "mais nova") */
 .fdh-selo { font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap;
             padding: 3px 7px; border-radius: 4px; border: 1px solid currentColor;
             max-width: 190px; overflow: hidden; text-overflow: ellipsis; flex: none; }
@@ -124,6 +128,11 @@ body { background: var(--fdh-bg) !important; color: var(--fdh-text);
 .q-btn.fdh-suave:hover:not(.disabled) { border-color: var(--fdh-primary); color: var(--fdh-primary) !important; }
 .q-btn.fdh-fantasma { background: transparent !important; color: var(--fdh-muted) !important; }
 .q-btn.fdh-fantasma:hover:not(.disabled) { background: var(--fdh-surface-2) !important; color: var(--fdh-text) !important; }
+.q-btn.fdh-perigo { background: var(--fdh-danger) !important; color: #fff !important; }
+.q-btn.fdh-perigo:hover:not(.disabled) { filter: brightness(1.1); }
+.fdh-menu .q-item .q-item__section--avatar { min-width: 32px; color: var(--fdh-muted); }
+.fdh-menu .q-item.fdh-perigo, .fdh-menu .q-item.fdh-perigo .q-item__section--avatar { color: var(--fdh-danger) !important; }
+.fdh-menu .q-item.fdh-perigo:hover { background: var(--fdh-danger-soft); }
 .q-btn.fdh-redondo { border-radius: 50%; min-height: 34px; width: 34px; padding: 0; border: 1px solid var(--fdh-border); }
 
 /* Botão de documento com menu de versões (q-btn-dropdown split) */
@@ -140,6 +149,15 @@ body { background: var(--fdh-bg) !important; color: var(--fdh-text);
 .fdh-menu .q-item { min-height: 44px; border-radius: var(--fdh-radius-sm); margin: 2px 4px; transition: background .12s; }
 .fdh-menu .q-item:hover { background: var(--fdh-primary-soft); }
 .fdh-menu .q-item__label--caption { color: var(--fdh-muted); }
+
+/* Referências do projeto */
+.fdh-ref { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--fdh-border);
+           border-radius: var(--fdh-radius-sm); background: var(--fdh-surface-2); min-width: 0; }
+.fdh-ref .nome { font-size: 13px; font-weight: 600; color: var(--fdh-text); overflow: hidden; text-overflow: ellipsis;
+                 white-space: nowrap; flex: 1; min-width: 0; }
+.fdh-ref .q-select { width: 250px; flex: none; }
+.fdh-ref.sem-categoria { border-color: var(--fdh-warn); }
+@media (max-width: 599px) { .fdh-ref { flex-wrap: wrap; } .fdh-ref .q-select { width: 100%; } }
 
 /* Escolha da ferramenta (VS Code / Claude Desktop) */
 .fdh-ferramenta { display: flex; align-items: center; gap: 8px; padding: 7px 10px; flex: 1; min-width: 0;
@@ -158,12 +176,4 @@ body { background: var(--fdh-bg) !important; color: var(--fdh-text);
                border: 1px solid var(--fdh-border); }
 .fdh-dialogo .q-field__label, .fdh-dialogo .q-field__native, .fdh-busca .q-field__native { color: var(--fdh-text); }
 .fdh-busca .q-field__control { background: var(--fdh-surface); border-radius: var(--fdh-radius-sm); }
-.fdh-tema { width: 64px; height: 30px; border-radius: 999px; cursor: pointer; position: relative; flex: none;
-            border: 1px solid var(--fdh-border-strong); transition: background .25s;
-            background: linear-gradient(90deg, #7dd3fc, #38bdf8); }
-body.body--dark .fdh-tema { background: linear-gradient(90deg, #1e293b, #334155); }
-.fdh-tema .bola { position: absolute; top: 3px; left: 4px; width: 22px; height: 22px; border-radius: 50%;
-                  background: #fbbf24; box-shadow: 0 0 8px rgba(251, 191, 36, .8); transition: left .25s, background .25s; }
-body.body--dark .fdh-tema .bola { left: 36px; background: #e2e8f0; box-shadow: 0 0 6px rgba(226, 232, 240, .6); }
-.fdh-tema:focus-visible { outline: 2px solid var(--fdh-primary); outline-offset: 2px; }
 """

@@ -6,14 +6,16 @@ O app NÃO gerencia contas: a conta do Fabric é conferida pelo assistente em ca
 Três coisas separadas:
 - Código-fonte: o repositório Git fabric-ai-doc-helper (branches, PRs, tags). Só para desenvolvimento.
 - App instalado: uma versão publicada (tag vX.Y.Z) baixada como .zip do GitHub e extraída em
-  %LOCALAPPDATA%/Programs/fabric-ai-doc-helper/versoes/<versão>/. Não é repositório Git.
+  ~/FabricDocHelper/app/versoes/<versão>/. Não é repositório Git. Ao lado: Projetos/ (pasta padrão
+  dos projetos) e dados/ (lista de projetos e log). Até a v2.3 o app ficava em AppData; ao abrir,
+  ele se muda sozinho (migrar_local_antigo, mudar_de_local, remover_instalacao_antiga).
 - Pasta de projeto: pasta comum com o "harness" (instruções, skills, guarda, scripts, template e
   configuração do Python) copiado da versão instalada, mais projeto/ com os dados do cliente e o
   marcador .fabric-doc-helper.json (versão do harness + impressão digital de cada arquivo copiado).
   Não é repositório Git e não vai para o GitHub.
 
-Modo desenvolvimento: app rodado do código-fonte (qualquer pasta fora de versoes/). Usa dados separados
-(…/fabric-ai-doc-helper/dev), pasta padrão C:/Fabric-teste, e os projetos recebem o harness direto da
+Modo desenvolvimento: app rodado do código-fonte (qualquer pasta fora de versoes/). Usa outra pasta
+(~/FabricDocHelper-dev, com Projetos/ e dados/), e os projetos recebem o harness direto da
 árvore de trabalho (inclusive o que ainda não foi commitado). FDH_PERFIL=dev|producao força o modo.
 """
 from __future__ import annotations
@@ -36,8 +38,14 @@ REPO = "leonardo-trindade/fabric-ai-doc-helper"
 VERSAO_MINIMA = (2, 0, 0)  # versões anteriores eram clones Git e não rodam neste formato
 RAIZ = Path(__file__).resolve().parents[1]  # versão em uso (origem do harness dos projetos)
 LOCAL = Path(os.environ.get("LOCALAPPDATA", Path.home()))
-BASE_INSTALACAO = LOCAL / "Programs" / "fabric-ai-doc-helper"
+# Tudo do app numa pasta do usuário: app\ (versões instaladas), Projetos\ e dados\ (lista de projetos, log).
+CASA = Path.home() / "FabricDocHelper"
+BASE_INSTALACAO = CASA / "app"
 VERSOES = BASE_INSTALACAO / "versoes"
+# Locais antigos (até a v2.3): app em AppData\Local\Programs, lista em AppData\Local, projetos em C:\Fabric.
+ANTIGA = LOCAL / "Programs" / "fabric-ai-doc-helper"
+DADOS_ANTIGOS = LOCAL / "fabric-ai-doc-helper"
+PADROES_ANTIGOS = {r"C:\Fabric", r"C:\Fabric-teste"}
 
 
 def _mesmo(a: Path, b: Path) -> bool:
@@ -45,11 +53,16 @@ def _mesmo(a: Path, b: Path) -> bool:
 
 
 _perfil = os.environ.get("FDH_PERFIL", "").lower()
-LEGADO = _mesmo(RAIZ, BASE_INSTALACAO)  # instalação v1 (clone Git): o instalador novo substitui
-MODO_DEV = _perfil == "dev" or (_perfil != "producao" and not LEGADO and not _mesmo(RAIZ.parent, VERSOES))
-DADOS = LOCAL / "fabric-ai-doc-helper" / ("dev" if MODO_DEV else "")
+LEGADO = _mesmo(RAIZ, ANTIGA)  # instalação v1 (clone Git): o instalador novo substitui
+NO_LOCAL_ANTIGO = _mesmo(RAIZ.parent, ANTIGA / "versoes")  # v2.0–2.3 atualizada pelo app: o app se muda
+MODO_DEV = _perfil == "dev" or (_perfil != "producao" and not LEGADO and not NO_LOCAL_ANTIGO
+                                and not _mesmo(RAIZ.parent, VERSOES))
+if MODO_DEV:  # desenvolvimento: lista e projetos separados do uso real
+    CASA = Path.home() / "FabricDocHelper-dev"
+    DADOS_ANTIGOS = DADOS_ANTIGOS / "dev"
+DADOS = CASA / "dados"
 ARQUIVO = DADOS / "app.json"
-PASTA_PADRAO = r"C:\Fabric-teste" if MODO_DEV else r"C:\Fabric"
+PASTA_PADRAO = str(CASA / "Projetos")
 SEM_JANELA = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 FERRAMENTAS = {"vscode": "VS Code", "claude": "Claude Desktop"}
@@ -72,13 +85,13 @@ class Projeto:
     ferramenta: str = "vscode"
     criado_em: str = ""
     ultimo_acesso: str = ""
+    revisado_em: str = ""  # marcado pelo usuário como revisado (pronto); vazio = em andamento
 
 
 @dataclass
 class Config:
     autor: str = ""
     pasta_padrao: str = PASTA_PADRAO
-    tema: str = "auto"  # auto (segue o Windows) | escuro | claro
     projetos: list[Projeto] = field(default_factory=list)
 
 
@@ -87,8 +100,42 @@ def carregar() -> Config:
         d = json.loads(ARQUIVO.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         return Config()
-    return Config(autor=d.get("autor", ""), pasta_padrao=d.get("pasta_padrao", PASTA_PADRAO),
-                  tema=d.get("tema", "auto"), projetos=[Projeto(**p) for p in d.get("projetos", [])])
+    padrao = d.get("pasta_padrao") or PASTA_PADRAO
+    if padrao in PADROES_ANTIGOS:  # padrão de versões antigas: passa para Projetos\ (projetos existentes ficam onde estão)
+        padrao = PASTA_PADRAO
+    return Config(autor=d.get("autor", ""), pasta_padrao=padrao,
+                  projetos=[Projeto(**p) for p in d.get("projetos", [])])
+
+
+def migrar_local_antigo() -> str | None:
+    """Uma vez, ao abrir: traz a lista de projetos do local antigo (AppData) para dados\\.
+
+    Os projetos não são movidos (cada um continua na pasta em que foi criado). Retorna aviso, se houver.
+    """
+    antigo = DADOS_ANTIGOS / "app.json"
+    if ARQUIVO.exists() or not antigo.is_file():
+        return None
+    DADOS.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(antigo, ARQUIVO)
+    antigo.rename(antigo.with_name("app.json.migrado"))  # fica de cópia de segurança
+    salvar(carregar())  # grava já com a pasta padrão nova
+    return f"Lista de projetos trazida para {DADOS}. Projetos novos vão para {PASTA_PADRAO}."
+
+
+def mudar_de_local() -> tuple[bool, str]:
+    """App v2.0–2.3 atualizado pelo próprio app continua em AppData: instala esta versão no local novo."""
+    if not NO_LOCAL_ANTIGO:
+        return True, ""
+    return instalar_versao(RAIZ.name)
+
+
+def remover_instalacao_antiga() -> None:
+    """Apaga o app do local antigo (AppData\\Local\\Programs), se este app não estiver rodando de lá."""
+    if ANTIGA.exists() and not LEGADO and not NO_LOCAL_ANTIGO and not MODO_DEV:
+        try:
+            _apagar(ANTIGA)
+        except OSError:
+            pass  # algum arquivo em uso; tenta de novo na próxima abertura
 
 
 def salvar(cfg: Config) -> None:
@@ -371,6 +418,45 @@ def adicionar_existente(cfg: Config, pasta: str, ferramenta: str) -> Projeto:
     return p
 
 
+def marcar_revisado(cfg: Config, pid: str, revisado: bool) -> None:
+    """O usuário considera o projeto pronto (ou o reabre). Só muda a lista do app, não a pasta."""
+    for q in cfg.projetos:
+        if q.id == pid:
+            q.revisado_em = agora() if revisado else ""
+    salvar(cfg)
+
+
+def excluir_projeto(cfg: Config, p: Projeto) -> None:
+    """Apaga a pasta do projeto (assistente + dados do cliente) e tira o projeto da lista.
+
+    Só apaga pasta que é de projeto do app (marcador ou harness) e nunca o código-fonte ou a instalação.
+    """
+    pasta = Path(p.pasta)
+    if pasta.exists():
+        e_projeto = bool(ler_marcador(pasta)) or (
+            (pasta / "AGENTS.md").is_file() and (pasta / "scripts" / "guarda.py").is_file())
+        protegidas = (RAIZ, CASA, BASE_INSTALACAO, VERSOES, DADOS, Path(PASTA_PADRAO), Path(cfg.pasta_padrao),
+                      Path.home(), Path(pasta.anchor))
+        if not e_projeto or (pasta / ".git").exists() or any(
+                _mesmo(pasta, x) or _dentro(x, pasta) for x in protegidas):
+            raise ValueError(f"Por segurança, essa pasta não é apagada pelo app: {pasta}. Apague-a manualmente.")
+        try:
+            _apagar(pasta)
+        except OSError as ex:
+            raise RuntimeError("Não foi possível apagar tudo: algum arquivo está aberto. Feche o VS Code, o Claude "
+                               f"e o Word com arquivos do projeto e tente de novo. ({ex})") from ex
+    cfg.projetos = [q for q in cfg.projetos if q.id != p.id]
+    salvar(cfg)
+
+
+def _dentro(filho: Path, pai: Path) -> bool:
+    """`filho` fica dentro de `pai` (apagar `pai` apagaria `filho`)."""
+    try:
+        return Path(filho).resolve().is_relative_to(Path(pai).resolve())
+    except OSError:
+        return False
+
+
 def ler_yaml(pasta: Path | str) -> dict:
     arq = Path(pasta) / "projeto" / "projeto.yaml"
     if not arq.is_file():
@@ -421,38 +507,117 @@ def documentos(pasta: Path | str) -> list[DocVersao]:
 @dataclass
 class Estado:
     existe: bool
-    etapa: str
     conta: str
     workspace: str
     documentos: list[DocVersao]
+    referencias: list[Referencia] = field(default_factory=list)
     versao_harness: str = ""
 
 
 def estado(p: Projeto) -> Estado:
     pasta = Path(p.pasta)
     if not pasta.is_dir():
-        return Estado(False, "Pasta não encontrada", "", "", [])
+        return Estado(False, "", "", [])
     y = ler_yaml(pasta)
-    proj = pasta / "projeto"
-    docs = documentos(pasta)
-    if not y:
-        etapa = "Configuração pendente"
-    elif not y.get("conta_fabric"):
-        etapa = "Conta a confirmar na 1ª conversa"
-    elif not y.get("workspace_alvo"):
-        etapa = "Workspace a escolher na 1ª conversa"
-    elif not any((proj / "inventario").glob("*.json")):
-        etapa = "Inventário pendente"
-    elif not (proj / "analise" / "notas.md").is_file():
-        etapa = "Análise pendente"
-    elif not docs:
-        etapa = "Documento pendente"
-    elif docs[0].revisado:
-        etapa = f"Revisado ({docs[0].rotulo.split(' ·')[0]})"
+    return Estado(True, y.get("conta_fabric") or "", y.get("workspace_alvo") or "", documentos(pasta),
+                  referencias(pasta), ler_marcador(pasta).get("versao", ""))
+
+
+# ---------------------------------------------------------------- referências do projeto
+# Arquivos opcionais do usuário em projeto/referencias/, registrados em projeto.yaml → referencias
+# com o tipo que as skills usam (levantamento | mapeamento | outro). O assistente só lê esses arquivos.
+CATEGORIAS = {"levantamento": "Levantamento de requisitos", "mapeamento": "Mapeamento", "outro": "Outros"}
+
+
+@dataclass
+class Referencia:
+    arquivo: Path
+    tipo: str            # chave de CATEGORIAS, ou "" se o arquivo está na pasta sem registro
+
+    @property
+    def categoria(self) -> str:
+        return CATEGORIAS.get(self.tipo, "Sem categoria")
+
+
+def pasta_referencias(pasta: Path | str) -> Path:
+    return Path(pasta) / "projeto" / "referencias"
+
+
+def _entradas_refs(pasta: Path | str) -> list[dict]:
+    return [x for x in (ler_yaml(pasta).get("referencias") or []) if isinstance(x, dict) and x.get("arquivo")]
+
+
+def referencias(pasta: Path | str) -> list[Referencia]:
+    """Arquivos de projeto/referencias/ (sem a pasta gerada _texto/), com a categoria registrada."""
+    refs = pasta_referencias(pasta)
+    tipos = {Path(x["arquivo"]).name.lower(): x.get("tipo") or "" for x in _entradas_refs(pasta)}
+    if not refs.is_dir():
+        return []
+    arquivos = [a for a in refs.iterdir() if a.is_file() and not a.name.startswith(("~$", "."))]
+    return [Referencia(a, tipos.get(a.name.lower(), "")) for a in sorted(arquivos, key=lambda a: a.name.lower())]
+
+
+def _gravar_entradas_refs(pasta: Path | str, entradas: list[dict]) -> None:
+    """Reescreve só o bloco `referencias:` do projeto.yaml (o resto do arquivo e os comentários ficam)."""
+    arq = Path(pasta) / "projeto" / "projeto.yaml"
+    txt = arq.read_text(encoding="utf-8") if arq.is_file() else ""
+    if entradas:
+        bloco = "referencias:\n" + "".join(
+            "  - {" + ", ".join(f"{k}: {json.dumps(v, ensure_ascii=False)}" for k, v in x.items()) + "}\n"
+            for x in entradas)
     else:
-        etapa = f"Documento gerado ({docs[0].rotulo})"
-    return Estado(True, etapa, y.get("conta_fabric") or "", y.get("workspace_alvo") or "", docs,
-                  ler_marcador(pasta).get("versao", ""))
+        bloco = "referencias: []\n"
+    padrao = re.compile(r"(?ms)^referencias:.*?(?=^\S|\Z)")
+    txt = padrao.sub(lambda _: bloco, txt, count=1) if padrao.search(txt) else txt.rstrip("\n") + "\n" + bloco
+    arq.write_text(txt, encoding="utf-8")
+
+
+def _registrar_ref(pasta: Path | str, nome: str, tipo: str) -> None:
+    entradas = _entradas_refs(pasta)
+    for x in entradas:
+        if Path(x["arquivo"]).name.lower() == nome.lower():
+            x["tipo"] = tipo
+            break
+    else:
+        entradas.append({"arquivo": f"referencias/{nome}", "tipo": tipo})
+    _gravar_entradas_refs(pasta, entradas)
+
+
+def anexar_referencia(pasta: Path | str, nome: str, conteudo: bytes | Path, tipo: str) -> Referencia:
+    """Copia um arquivo para projeto/referencias/ (nunca sobrescreve: nome repetido ganha " (2)")
+    e registra a categoria no projeto.yaml."""
+    if tipo not in CATEGORIAS:
+        raise ValueError(f"Categoria inválida: {tipo}")
+    refs = pasta_referencias(pasta)
+    refs.mkdir(parents=True, exist_ok=True)
+    base = Path(Path(nome).name)  # só o nome, sem pastas
+    if not base.stem or base.name.startswith(("~$", ".")):
+        raise ValueError(f"Nome de arquivo inválido: {nome}")
+    destino, n = refs / base.name, 2
+    while destino.exists():
+        destino, n = refs / f"{base.stem} ({n}){base.suffix}", n + 1
+    if isinstance(conteudo, Path):
+        shutil.copy2(conteudo, destino)
+    else:
+        destino.write_bytes(conteudo)
+    _registrar_ref(pasta, destino.name, tipo)
+    return Referencia(destino, tipo)
+
+
+def definir_categoria(pasta: Path | str, ref: Referencia, tipo: str) -> None:
+    if tipo not in CATEGORIAS:
+        raise ValueError(f"Categoria inválida: {tipo}")
+    _registrar_ref(pasta, ref.arquivo.name, tipo)
+
+
+def remover_referencia(pasta: Path | str, ref: Referencia) -> None:
+    """Apaga a cópia em projeto/referencias/ (o original do usuário não é tocado), o texto gerado e o registro."""
+    texto = pasta_referencias(pasta) / "_texto" / f"{ref.arquivo.name}.md"
+    for a in (ref.arquivo, texto):
+        if a.is_file():
+            a.unlink()
+    _gravar_entradas_refs(pasta, [x for x in _entradas_refs(pasta)
+                                  if Path(x["arquivo"]).name.lower() != ref.arquivo.name.lower()])
 
 
 def abrir_documento(doc: DocVersao) -> None:

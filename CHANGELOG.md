@@ -5,6 +5,23 @@ atualização, então escreva para quem usa: o que muda no dia a dia e se é pre
 
 Formato: `## vX.Y.Z — AAAA-MM-DD` (X = muda o jeito de trabalhar · Y = novidade · Z = correção).
 
+## v2.4.0 — 2026-10-05
+O app muda de lugar e ganha referências por categoria, exclusão de projeto e marcação de pronto.
+
+**Mudança de local:** o app passa a ficar em `C:\Users\<você>\FabricDocHelper`, com `app\` (o app),
+`Projetos\` (onde os projetos novos são criados) e `dados\` (lista de projetos). Ao abrir a versão
+nova, o app se muda sozinho e traz a sua lista de projetos; quando ele pedir, feche e abra pelo
+atalho. Os projetos que você já tem continuam nas pastas em que foram criados.
+
+- **Anexar referência** em cada projeto: escolha a categoria (Levantamento de requisitos, Mapeamento
+  ou Outros) e os arquivos. O app copia para a pasta do projeto e o assistente já sabe o papel de
+  cada um. Em **Ver** dá para trocar a categoria, abrir ou remover.
+- **Marcar como revisado (pronto)** no menu ⋮ do projeto: o cartão ganha o selo PRONTO.
+- **Excluir projeto** no menu ⋮: apaga a pasta do projeto (pede para digitar o nome; não dá para
+  desfazer). "Remover da lista" continua existindo e não apaga nada.
+- Visual mais simples: logo próprio, só o tema escuro, menu lateral fixo e sem os indicadores de
+  etapa. "Projeto/fase" virou só "Projeto" e "Adicionar pasta existente" virou "Adicionar pasta".
+
 ## v2.3.0 — 2026-10-05
 Novo visual do app, no padrão BlueOps, e acesso direto às versões do documento.
 - Temas escuro e claro, com botão no cabeçalho (começa seguindo o tema do Windows e lembra a escolha).

@@ -6,7 +6,7 @@ Rodar:   uv run python app/main.py            (janela própria)
 A conversa com o assistente acontece na ferramenta escolhida; o app só organiza os projetos.
 A conta do Fabric é conferida pelo assistente no início de cada conversa.
 Rodado de fora da instalação padrão, abre em modo desenvolvimento (ver app/servicos.py).
-Visual: design system do BlueOps (app/marca.py), temas escuro e claro.
+Visual: app/marca.py (marca própria, tema escuro).
 """
 from __future__ import annotations
 
@@ -24,10 +24,14 @@ if sys.stdout is None or sys.stderr is None:  # pythonw (atalho, sem console): s
 
 from nicegui import app, run, ui  # noqa: E402
 
+try:  # 1ª abertura depois da v2.3: traz a lista de projetos do local antigo (AppData)
+    AVISO_MIGRACAO = s.migrar_local_antigo()
+except OSError as e:
+    AVISO_MIGRACAO = f"Não foi possível trazer a lista de projetos do local antigo ({s.DADOS_ANTIGOS}): {e}"
+
 NATIVO = "--navegador" not in sys.argv
 ESTADO = {"ferramentas": s.Ferramentas()}
 FILTRO = {"texto": ""}
-TEMAS = {"escuro": True, "claro": False, "auto": None}
 
 
 def ferramentas() -> s.Ferramentas:
@@ -74,13 +78,6 @@ def cabecalho_secao(titulo: str, direita: str = "") -> None:
         ui.label(titulo).classes("fdh-titulo-secao")
         if direita:
             ui.label(direita).classes("fdh-rotulo")
-
-
-def kpi(titulo: str, valor: int | str, cor: str) -> None:
-    with ui.element("div").classes("fdh-cartao fdh-kpi"):
-        ui.element("span").classes("fdh-ponto").style(f"background: {cor}")
-        rotulo(titulo)
-        ui.label(str(valor)).classes("fdh-valor")
 
 
 def svg(chave: str) -> None:
@@ -154,6 +151,123 @@ def botao_documento(e: s.Estado) -> None:
                         ui.label("Mais nova").classes("fdh-selo azul")
 
 
+# ---------------------------------------------------------------- referências
+ICONE_CATEGORIA = {"levantamento": "assignment", "mapeamento": "table_chart", "outro": "attach_file"}
+TIPOS_REFERENCIA = ("Documentos (*.xlsx;*.xlsm;*.pptx;*.docx;*.pdf;*.md;*.txt;*.csv)", "Todos os arquivos (*.*)")
+
+
+def botao_referencias(p: s.Projeto, e: s.Estado) -> None:
+    """Anexar: o usuário escolhe a categoria e depois os arquivos (copiados para projeto/referencias/)."""
+    with ui.row().classes("w-full gap-2 no-wrap"):
+        with botao("Anexar referência", icone="attach_file", desabilitado=not e.existe).classes("col"):
+            with ui.menu().classes("fdh-menu").props('anchor="bottom left" self="top left"'):
+                rotulo("Categoria do arquivo").classes("q-px-md q-pt-sm q-pb-xs")
+                for tipo, nome in s.CATEGORIAS.items():
+                    with ui.item(on_click=lambda t=tipo: anexar(p, t)).props("clickable v-close-popup"):
+                        with ui.item_section().props("avatar"):
+                            ui.icon(ICONE_CATEGORIA[tipo]).style("color: var(--fdh-primary)")
+                        with ui.item_section():
+                            ui.item_label(nome).classes("fdh-texto text-weight-bold")
+        pendentes = sum(not r.tipo for r in e.referencias)
+        botao(f"Ver ({len(e.referencias)})", icone="folder_open", tipo="fantasma",
+              desabilitado=not e.referencias, on_click=lambda: dialogo_referencias(p),
+              dica=f"{pendentes} arquivo(s) sem categoria" if pendentes else "Arquivos de referência do projeto")
+
+
+async def anexar(p: s.Projeto, tipo: str) -> None:
+    categoria = s.CATEGORIAS[tipo]
+    if not NATIVO:  # no navegador não há caminho de arquivo: envia pelo formulário
+        dlg, cartao = dialogo(f"Anexar · {categoria}", "Os arquivos são copiados para a pasta de referências do "
+                              "projeto; o original não é alterado.", 520)
+
+        async def recebido(ev) -> None:
+            dados = await ev.file.read()
+            try:
+                await run.io_bound(s.anexar_referencia, p.pasta, ev.file.name, dados, tipo)
+            except Exception as ex:  # noqa: BLE001
+                ui.notify(str(ex), type="negative")
+                return
+            ui.notify(f"{ev.file.name} anexado como {categoria}.", type="positive")
+            painel.refresh()
+        with cartao:
+            ui.upload(multiple=True, auto_upload=True, on_upload=recebido).props("flat bordered").classes("w-full")
+            with ui.row().classes("w-full justify-end"):
+                botao("Fechar", on_click=dlg.close, tipo="fantasma")
+        dlg.open()
+        return
+    import webview
+    caminhos = await app.native.main_window.create_file_dialog(
+        webview.FileDialog.OPEN, allow_multiple=True, file_types=TIPOS_REFERENCIA)
+    if not caminhos:
+        return
+    nomes, erros = [], []
+    for c in caminhos:
+        try:
+            ref = await run.io_bound(s.anexar_referencia, p.pasta, Path(c).name, Path(c), tipo)
+            nomes.append(ref.arquivo.name)
+        except Exception as ex:  # noqa: BLE001
+            erros.append(f"{Path(c).name}: {ex}")
+    if nomes:
+        ui.notify(f"{len(nomes)} arquivo(s) anexado(s) como {categoria}: " + ", ".join(nomes),
+                  type="positive", multi_line=True)
+    for erro in erros:
+        ui.notify(erro, type="negative", multi_line=True)
+    painel.refresh()
+
+
+def dialogo_referencias(p: s.Projeto) -> None:
+    dlg, cartao = dialogo(f"Referências · {p.projeto}",
+                          "Arquivos que o assistente usa para completar escopo e mapeamento. Ficam na pasta do "
+                          "projeto; o assistente só os lê.", 680)
+
+    @ui.refreshable
+    def lista() -> None:
+        refs = s.referencias(p.pasta)
+        if not refs:
+            ui.label("Nenhum arquivo de referência.").classes("fdh-mudo")
+            return
+        for r in refs:
+            with ui.element("div").classes("fdh-ref" + ("" if r.tipo else " sem-categoria")):
+                ui.icon(ICONE_CATEGORIA.get(r.tipo, "help_outline")).style(
+                    f"color: var({'--fdh-primary' if r.tipo else '--fdh-warn'})")
+                ui.label(r.arquivo.name).classes("nome").tooltip(str(r.arquivo))
+
+                def mudar(ev, ref=r) -> None:
+                    if ev.value and ev.value != ref.tipo:
+                        s.definir_categoria(p.pasta, ref, ev.value)
+                        lista.refresh()
+                        painel.refresh()
+                ui.select(s.CATEGORIAS, value=r.tipo or None, label=None if r.tipo else "Escolha a categoria",
+                          on_change=mudar).props("outlined dense options-dense")
+                botao(icone="open_in_new", tipo="fantasma", dica="Abrir o arquivo",
+                      on_click=lambda ref=r: os.startfile(ref.arquivo)).props("dense")
+                botao(icone="delete_outline", tipo="fantasma", dica="Remover do projeto",
+                      on_click=lambda ref=r: confirmar_remocao(ref)).props("dense")
+
+    def confirmar_remocao(ref: s.Referencia) -> None:
+        conf, c = dialogo("Remover referência?", f"{ref.arquivo.name} será apagado da pasta do projeto "
+                          "(só a cópia; o arquivo de onde você anexou não é tocado).", 460)
+
+        def remover_ref() -> None:
+            s.remover_referencia(p.pasta, ref)
+            conf.close()
+            lista.refresh()
+            painel.refresh()
+        with c, ui.row().classes("w-full justify-end gap-2"):
+            botao("Cancelar", on_click=conf.close, tipo="fantasma")
+            botao("Remover", on_click=remover_ref, tipo="primario", icone="delete_outline")
+        conf.open()
+
+    with cartao:
+        with ui.column().classes("w-full gap-2"):
+            lista()
+        with ui.row().classes("w-full justify-end gap-2"):
+            botao("Abrir pasta", icone="folder_open", tipo="fantasma",
+                  on_click=lambda: os.startfile(s.pasta_referencias(p.pasta)))
+            botao("Fechar", on_click=dlg.close, tipo="primario")
+    dlg.open()
+
+
 # ---------------------------------------------------------------- diálogos
 def dialogo(titulo: str, subtitulo: str = "", largura: int = 620):
     dlg = ui.dialog()
@@ -179,7 +293,7 @@ def dialogo_novo() -> None:
                           "conversa com o assistente.")
     with cartao:
         cliente = campo("Cliente *", autocomplete=clientes)
-        projeto = campo("Projeto / fase *")
+        projeto = campo("Projeto *")
         autor = campo("Autor do documento *", value=cfg.autor)
         with ui.row().classes("w-full items-center no-wrap gap-2"):
             pasta = campo("Pasta do projeto *").classes("flex-1")
@@ -240,7 +354,7 @@ def dialogo_novo() -> None:
 def dialogo_existente() -> None:
     f = ferramentas()
     ferr = {"v": "vscode" if f.tem_vscode else "claude"}
-    dlg, cartao = dialogo("Adicionar pasta existente",
+    dlg, cartao = dialogo("Adicionar pasta",
                           "Para uma pasta de projeto que não está na lista (outro computador, versão antiga…).", 560)
     with cartao:
         with ui.row().classes("w-full items-center no-wrap gap-2"):
@@ -379,31 +493,49 @@ def remover(p: s.Projeto) -> None:
     ui.notify("Removido da lista (a pasta não foi apagada).")
 
 
+def revisar(p: s.Projeto, revisado: bool) -> None:
+    s.marcar_revisado(s.carregar(), p.id, revisado)
+    painel.refresh()
+    ui.notify(f"{p.projeto}: marcado como pronto." if revisado else f"{p.projeto}: reaberto.",
+              type="positive" if revisado else "info")
+
+
+def dialogo_excluir(p: s.Projeto) -> None:
+    """Apaga a pasta inteira; pede para digitar o nome do projeto, porque não dá para desfazer."""
+    dlg, cartao = dialogo("Excluir projeto?", "A pasta do projeto será apagada com tudo o que está nela: documentos, "
+                          "análise, inventário e referências. Não dá para desfazer (não vai para a Lixeira).", 520)
+    with cartao:
+        ui.label(p.pasta).classes("fdh-caminho")
+        nome = p.projeto or p.cliente
+        confirma = campo(f'Digite "{nome}" para confirmar')
+
+        async def excluir() -> None:
+            if (confirma.value or "").strip() != nome:
+                ui.notify("O nome digitado não confere.", type="warning")
+                return
+            btn.disable()
+            try:
+                await run.io_bound(s.excluir_projeto, s.carregar(), p)
+            except Exception as ex:  # noqa: BLE001
+                ui.notify(str(ex), type="negative", multi_line=True, timeout=0, close_button=True)
+                btn.enable()
+                return
+            dlg.close()
+            painel.refresh()
+            ui.notify(f"Projeto {nome} excluído.", type="positive")
+
+        with ui.row().classes("w-full justify-end gap-2"):
+            botao("Cancelar", on_click=dlg.close, tipo="fantasma")
+            btn = botao("Excluir projeto", on_click=excluir, tipo="perigo", icone="delete_forever")
+    dlg.open()
+
+
 # ---------------------------------------------------------------- painel
-def classe_etapa(e: s.Estado) -> str:
-    if not e.existe:
-        return "erro"
-    if e.etapa.startswith("Revisado"):
-        return "ok"
-    if e.etapa.startswith("Documento gerado"):
-        return "azul"
-    if "1ª conversa" in e.etapa or "pendente" in e.etapa.lower():
-        return "alerta"
-    return "neutro"
-
-
 @ui.refreshable
 def painel() -> None:
     cfg = s.carregar()
     f = ferramentas()
     estados = {p.id: s.estado(p) for p in cfg.projetos}
-
-    with ui.element("div").classes("grid w-full gap-3 grid-cols-2 sm:grid-cols-3 xl:grid-cols-5"):
-        kpi("Projetos", len(cfg.projetos), "var(--fdh-primary)")
-        kpi("Clientes", len({p.cliente for p in cfg.projetos}), "var(--fdh-primary)")
-        kpi("Aguardando 1ª conversa", sum("1ª conversa" in e.etapa for e in estados.values()), "var(--fdh-danger)")
-        kpi("Com documento", sum(bool(e.documentos) for e in estados.values()), "var(--fdh-warn)")
-        kpi("Revisados", sum(e.etapa.startswith("Revisado") for e in estados.values()), "var(--fdh-ok)")
 
     termo = FILTRO["texto"].lower()
     projetos = [p for p in cfg.projetos if termo in f"{p.cliente} {p.projeto} {p.pasta}".lower()]
@@ -414,7 +546,7 @@ def painel() -> None:
             with ui.column().classes("w-full items-center q-py-xl gap-2"):
                 ui.icon("description", size="42px").style("color: var(--fdh-faint)")
                 ui.label("Nenhum projeto ainda").classes("fdh-titulo-cartao")
-                ui.label("Crie um projeto para cada cliente/fase que for documentar.").classes("fdh-mudo")
+                ui.label("Crie um projeto para cada documentação de cliente.").classes("fdh-mudo")
                 botao("Novo projeto", icone="add", on_click=dialogo_novo, tipo="primario").classes("q-mt-sm")
         return
     if not projetos:
@@ -439,12 +571,21 @@ def cartao_projeto(p: s.Projeto, e: s.Estado, f: s.Ferramentas, versao_app: str)
                 ui.label(p.projeto or "(sem nome)").classes("fdh-titulo-cartao")
                 ui.label(p.pasta).classes("fdh-caminho").tooltip(p.pasta)
             with ui.row().classes("items-center gap-1 no-wrap"):
-                ui.label(e.etapa.replace(" na 1ª conversa", "")).classes(f"fdh-selo {classe_etapa(e)}").tooltip(e.etapa)
+                if not e.existe:
+                    ui.label("Pasta não encontrada").classes("fdh-selo erro").tooltip(p.pasta)
+                elif p.revisado_em:
+                    ui.label("Pronto").classes("fdh-selo ok").tooltip(f"Marcado como revisado em {p.revisado_em}")
                 with botao(icone="more_vert", tipo="fantasma").props("round dense").tooltip("Mais ações"):
-                    with ui.menu().props('content-class="fdh-menu"'):
-                        ui.menu_item("Abrir pasta do projeto", on_click=lambda: os.startfile(p.pasta) if e.existe else None)
+                    with ui.menu().classes("fdh-menu") as menu:
+                        if p.revisado_em:
+                            item_menu(menu, "Reabrir (tirar de pronto)", "undo", lambda: revisar(p, False))
+                        else:
+                            item_menu(menu, "Marcar como revisado (pronto)", "task_alt", lambda: revisar(p, True))
+                        item_menu(menu, "Abrir pasta do projeto", "folder_open",
+                                  lambda: os.startfile(p.pasta) if e.existe else None)
                         ui.separator()
-                        ui.menu_item("Remover da lista", on_click=lambda: remover(p))
+                        item_menu(menu, "Remover da lista", "playlist_remove", lambda: remover(p))
+                        item_menu(menu, "Excluir projeto…", "delete_forever", lambda: dialogo_excluir(p), perigo=True)
 
         with ui.element("div").classes("grid grid-cols-2 gap-x-4 gap-y-2"):
             for titulo, valor in (("Workspace", e.workspace or "Escolhido na 1ª conversa"),
@@ -461,6 +602,10 @@ def cartao_projeto(p: s.Projeto, e: s.Estado, f: s.Ferramentas, versao_app: str)
             botao_documento(e)
 
         with ui.column().classes("w-full gap-1"):
+            rotulo(f"Referências · {len(e.referencias)}" if e.referencias else "Referências")
+            botao_referencias(p, e)
+
+        with ui.column().classes("w-full gap-1"):
             rotulo("Abrir no assistente")
             escolha = {"v": p.ferramenta}
             seletor_ferramenta(escolha, ao_mudar=lambda c: trocar_ferramenta(p, c), compacto=True)
@@ -472,6 +617,17 @@ def cartao_projeto(p: s.Projeto, e: s.Estado, f: s.Ferramentas, versao_app: str)
 
 
 # ---------------------------------------------------------------- página
+def item_menu(menu: ui.menu, texto: str, icone: str, on_click, perigo: bool = False) -> None:
+    def clicar():
+        menu.close()
+        return on_click()
+    with ui.item(on_click=clicar).props("clickable").classes("fdh-perigo" if perigo else ""):
+        with ui.item_section().props("avatar"):
+            ui.icon(icone)
+        with ui.item_section():
+            ui.item_label(texto)
+
+
 def item_nav(texto: str, icone: str, on_click=None, ativo: bool = False) -> None:
     with ui.element("div").classes("fdh-nav" + (" ativo" if ativo else "")).props('role="button" tabindex="0"') as nav:
         ui.icon(icone)
@@ -486,42 +642,23 @@ async def pagina() -> None:
     ui.add_head_html(marca.FONTES)
     ui.add_css(marca.CSS)
     ui.colors(primary=marca.AZUL)
-    cfg = s.carregar()
-    escuro = ui.dark_mode(TEMAS.get(cfg.tema))
+    ui.dark_mode(True)  # tema único: escuro
 
-    async def alternar_tema() -> None:
-        atual = escuro.value
-        if atual is None:  # automático: parte do tema que o Windows está mostrando agora
-            atual = await ui.run_javascript('window.matchMedia("(prefers-color-scheme: dark)").matches')
-        escuro.set_value(not atual)
-        c = s.carregar()
-        c.tema = "escuro" if escuro.value else "claro"
-        s.salvar(c)
-
-    gaveta = ui.left_drawer(value=True, bordered=False).props("width=240 breakpoint=900").classes("fdh-drawer q-pa-sm")
-    with gaveta:
-        with ui.row().classes("w-full justify-end"):
-            botao(icone="keyboard_double_arrow_left", tipo="fantasma", on_click=gaveta.hide,
-                  dica="Recolher menu").props("dense")
+    # Menu lateral fixo: sempre aberto, sem botão de recolher (behavior=desktop ignora a largura da janela)
+    with ui.left_drawer(value=True, bordered=False).props("width=240 behavior=desktop persistent no-swipe-close") \
+            .classes("fdh-drawer q-pa-sm q-pt-md"):
         item_nav("Projetos", "folder_copy", ativo=True)
         ui.label("Ações").classes("fdh-secao-nav")
         item_nav("Novo projeto", "add_circle_outline", dialogo_novo)
-        item_nav("Adicionar pasta existente", "create_new_folder", dialogo_existente)
+        item_nav("Adicionar pasta", "create_new_folder", dialogo_existente)
         item_nav("Configurações", "settings", dialogo_config)
 
     with ui.header().classes("fdh-header items-center justify-between q-px-md").style("height: 56px"):
         with ui.row().classes("items-center gap-3 no-wrap"):
-            botao(icone="menu", tipo="fantasma", on_click=gaveta.toggle, dica="Menu").props("dense")
-            ui.html('<span class="fdh-logo"><span class="azul">FABRIC</span> DOC HELPER</span>', sanitize=False)
+            ui.html(f'<span class="fdh-logo">{marca.LOGO_SVG}<span class="nome">Fabric <span>Doc Helper</span></span></span>',
+                    sanitize=False)
             ui.label(s.versao_atual()).classes("fdh-selo neutro")
-        with ui.row().classes("items-center gap-3 no-wrap"):
-            botao("Novo projeto", icone="add", on_click=dialogo_novo, tipo="primario").classes("gt-xs")
-            tema = ui.element("div").classes("fdh-tema").props('role="switch" tabindex="0" aria-label="Alternar tema"')
-            with tema:
-                ui.element("span").classes("bola")
-            tema.on("click", alternar_tema)
-            tema.on("keydown.enter", alternar_tema)
-            tema.tooltip("Tema escuro / claro")
+        botao("Novo projeto", icone="add", on_click=dialogo_novo, tipo="primario").classes("gt-xs")
 
     with ui.column().classes("w-full max-w-[1400px] mx-auto q-pa-md gap-4"):
         if s.MODO_DEV:
@@ -530,12 +667,25 @@ async def pagina() -> None:
         elif s.LEGADO:
             ui.label("Instalação antiga (v1). Rode o instalador de novo para passar ao formato atual "
                      "(seus projetos e configurações são mantidos).").classes("fdh-faixa w-full")
+        elif s.NO_LOCAL_ANTIGO:
+            faixa = ui.label(f"O app está mudando para {s.CASA} (pasta com o app, os projetos novos e a lista). "
+                             "Aguarde…").classes("fdh-faixa w-full")
         ui.input(placeholder="Buscar por cliente, projeto ou pasta",
                  on_change=lambda ev: (FILTRO.update(texto=ev.value or ""), painel.refresh())
                  ).props("outlined dense clearable").classes("w-full fdh-busca")
         painel()
     ui.timer(0.1, detectar, once=True)  # detecção roda depois que a página aparece
-    ui.timer(1.0, verificar_versao, once=True)
+    if AVISO_MIGRACAO:
+        ui.notify(AVISO_MIGRACAO, type="info", multi_line=True, timeout=15000, close_button=True)
+    if s.NO_LOCAL_ANTIGO:
+        async def mudar() -> None:
+            ok, msg = await run.io_bound(s.mudar_de_local)
+            faixa.text = (f"Pronto: o app agora fica em {s.CASA}. Feche e abra pelo atalho." if ok
+                          else f"Não foi possível mudar o app de lugar: {msg} Rode o instalador de novo.")
+        ui.timer(0.5, mudar, once=True)
+    else:
+        ui.timer(5.0, lambda: run.io_bound(s.remover_instalacao_antiga), once=True)
+        ui.timer(1.0, verificar_versao, once=True)
 
 
 async def verificar_versao() -> None:
@@ -564,4 +714,4 @@ if __name__ in {"__main__", "__mp_main__"}:
     ui.run(title="Fabric Doc Helper" + (" (dev)" if s.MODO_DEV else ""), native=NATIVO,
            host="127.0.0.1",  # só este computador
            window_size=(1280, 820) if NATIVO else None,
-           reload=False, show=not NATIVO and "--sem-abrir" not in sys.argv, port=None if NATIVO else 8765, favicon="📄")
+           reload=False, show=not NATIVO and "--sem-abrir" not in sys.argv, port=None if NATIVO else 8765, favicon=marca.LOGO_SVG)
