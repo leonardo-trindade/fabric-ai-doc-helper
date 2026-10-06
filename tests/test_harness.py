@@ -58,7 +58,8 @@ def test_projeto_sem_git_e_so_com_o_harness(app_dev):
     assert marcador["id"] == p.id and marcador["versao"].startswith("dev") and len(marcador["arquivos"]) > 20
     yaml = s.ler_yaml(d)
     assert yaml["cliente"] == "Cli" and yaml["workspace_alvo"] == "" and yaml["conta_fabric"] == ""
-    assert s.estado(p).etapa == "Conta a confirmar na 1ª conversa"
+    e = s.estado(p)
+    assert e.existe and e.conta == "" and e.workspace == "" and e.documentos == [] and e.referencias == []
 
 
 def test_reabrir_e_alteracao_local(app_dev):

@@ -90,11 +90,12 @@ Se algo for bloqueado, não tente contornar: explique ao usuário e peça que el
 manualmente. Sem adaptador, as regras valem do mesmo jeito: siga-as por conta própria.
 
 ## Referências opcionais
-O usuário pode colocar arquivos em `projeto/referencias/` (levantamento de requisitos,
-planilha de mapeamento de tabelas, atas, etc.). São **opcionais**:
+O usuário anexa arquivos pelo app (ou coloca em `projeto/referencias/`): levantamento de requisitos,
+planilha de mapeamento de tabelas, atas, etc. São **opcionais**:
 - com eles, as seções de escopo e mapeamento ficam completas;
 - sem eles, o documento é gerado a partir do inventário e da leitura dos itens, com lacunas marcadas `{{...}}`.
-Pergunte o papel de cada arquivo novo e registre em `projeto.yaml → referencias`.
+O app registra o `tipo` de cada anexo em `projeto.yaml → referencias`; pergunte o papel só de
+arquivo sem registro, e registre.
 
 ## Ambiente
 - Python e dependências via `uv` (`uv sync`); sempre `uv run python ...` (o `fab` via `scripts/fab_ro.py`).

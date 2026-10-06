@@ -11,8 +11,8 @@ O repositório é **neutro**: não contém dados de cliente. São três coisas s
 | | O que é | É repositório Git? |
 |---|---|---|
 | **Código-fonte** | este repositório: branches, PRs e versões publicadas (tags). Só para quem desenvolve. | Sim |
-| **App instalado** | uma versão publicada, baixada pelo instalador para `%LOCALAPPDATA%\Programs\fabric-ai-doc-helper\versoes\<versão>`. | Não |
-| **Pasta de projeto** | criada pelo app para cada cliente/fase: o assistente (instruções, skills, guarda, scripts, template) + `projeto/` com os dados do cliente. | Não, e não vai para o GitHub |
+| **App instalado** | uma versão publicada, baixada pelo instalador para `%USERPROFILE%\FabricDocHelper\app\versoes\<versão>`. | Não |
+| **Pasta de projeto** | criada pelo app para cada projeto de cliente (por padrão em `%USERPROFILE%\FabricDocHelper\Projetos`): o assistente (instruções, skills, guarda, scripts, template) + `projeto/` com os dados do cliente. | Não, e não vai para o GitHub |
 
 ---
 
@@ -26,7 +26,7 @@ O instalador instala o uv se faltar, baixa a última versão publicada, prepara 
 atalho **Fabric Doc Helper** no Menu Iniciar e na Área de Trabalho. Não é preciso Git, Python
 nem o Fabric CLI.
 
-**2. Crie um projeto** no app (**Novo projeto**): cliente, projeto/fase, autor, pasta e onde
+**2. Crie um projeto** no app (**Novo projeto**): cliente, projeto, autor, pasta e onde
 você vai conversar com o assistente: **VS Code** (com a extensão Claude Code)
 ou **Claude Desktop**. Opções não instaladas no PC aparecem em cinza.
 
@@ -58,9 +58,20 @@ permissão e refaz o login antes de continuar.
 - Projetos do mesmo cliente podem usar a mesma conta.
 - Evite pastas no OneDrive: os dados do cliente seriam sincronizados (o app avisa).
 
+### Onde fica cada coisa
+```
+%USERPROFILE%\FabricDocHelper\      (ex.: C:\Users\ana\FabricDocHelper)
+  app\versoes\<versão>\      o app instalado (as 3 versões mais novas)
+  Projetos\                  pasta padrão dos projetos (dá para trocar nas Configurações)
+  dados\                     lista de projetos (app.json) e log do app (app.log)
+```
+Até a v2.3 o app ficava em `%LOCALAPPDATA%` e os projetos em `C:\Fabric`. Ao abrir a versão nova,
+o app traz a lista de projetos e passa a criar os novos em `Projetos\`; os projetos já existentes
+continuam onde estão.
+
 ### A pasta do projeto
 ```
-C:\Fabric\<Cliente>-<Projeto>\
+%USERPROFILE%\FabricDocHelper\Projetos\<Cliente>-<Projeto>\
   LEIA-ME.md                 o que é esta pasta
   AGENTS.md, CLAUDE.md       instruções do assistente   ┐
   .agents\ .claude\          skills, hooks e guarda      │ o "assistente": não edite,
@@ -195,17 +206,17 @@ que acabou de entrar na `main`.
 ### Desenvolvimento (testar sem afetar o uso real)
 | | Desenvolvimento | Uso real (produção) |
 |---|---|---|
-| Código | o código-fonte (clone deste repositório), em branches | `%LOCALAPPDATA%\Programs\fabric-ai-doc-helper\versoes\<versão>` (sem Git) |
+| Código | o código-fonte (clone deste repositório), em branches | `%USERPROFILE%\FabricDocHelper\app\versoes\<versão>` (sem Git) |
 | Abrir o app | atalho **Fabric Doc Helper (dev)** (criado por `powershell -ExecutionPolicy Bypass -File instalar.ps1` dentro do clone) ou `uv run python app/main.py` | atalho **Fabric Doc Helper** |
-| Lista de projetos | `%LOCALAPPDATA%\fabric-ai-doc-helper\dev\app.json` | `%LOCALAPPDATA%\fabric-ai-doc-helper\app.json` |
-| Pasta padrão | `C:\Fabric-teste` | `C:\Fabric` |
+| Lista de projetos | `%USERPROFILE%\FabricDocHelper-dev\dados\app.json` | `%USERPROFILE%\FabricDocHelper\dados\app.json` |
+| Pasta padrão | `%USERPROFILE%\FabricDocHelper-dev\Projetos` | `%USERPROFILE%\FabricDocHelper\Projetos` |
 | Projetos recebem | o assistente da **árvore de trabalho** (inclusive o que não foi commitado; nunca o `.agents\MANUTENCAO`) | a versão instalada |
 
 O app em desenvolvimento mostra a faixa laranja **DESENVOLVIMENTO** e "(dev)" no título.
 O Fabric é só leitura, então testar contra um workspace real não altera nada nele; se o teste
 trocar a conta logada, o projeto real detecta e pede para refazer o login.
 
-Ciclo: branch → alterar → testar no app (dev) com um projeto em `C:\Fabric-teste` → PR → merge → publicar.
+Ciclo: branch → alterar → testar no app (dev) com um projeto em `FabricDocHelper-dev\Projetos` → PR → merge → publicar.
 
 ### Testes
 ```powershell
@@ -242,7 +253,7 @@ código-fonte: não vão para as pastas de projeto, e o pytest não é instalado
 | Trocou de cliente na mesma máquina | Nada a fazer: ao abrir o projeto, o assistente detecta a conta diferente e, com sua permissão, refaz o login |
 | Botão do VS Code/Claude Desktop cinza no app | Ferramenta não instalada (o app procura no Menu Iniciar e no registro). Instale e reabra o app |
 | VS Code sem a extensão Claude Code | App → Configurações → **Instalar extensão Claude Code** |
-| App não abre pelo atalho | Veja `%LOCALAPPDATA%\fabric-ai-doc-helper\app.log` ou rode o instalador de novo (se o app estiver aberto, feche antes) |
+| App não abre pelo atalho | Veja `%USERPROFILE%\FabricDocHelper\dados\app.log` ou rode o instalador de novo (se o app estiver aberto, feche antes) |
 | Faixa "Instalação antiga (v1)" no app | Rode o instalador de novo: ele troca a instalação baseada em Git pela atual, mantendo projetos e configurações |
 | "Assistente desta pasta foi editado localmente" | Alguém alterou arquivos do assistente na pasta do projeto. Desfaça a alteração (ou apague o arquivo citado) e abra o projeto de novo |
 | Sumário do Word desatualizado | `powershell -ExecutionPolicy Bypass -File scripts/finalizar_docx.ps1 projeto/docs/<arquivo>.docx` ou, no Word, botão direito no sumário → Atualizar campo |
@@ -259,10 +270,11 @@ CHANGELOG.md                novidades de cada versão publicada (mostradas pelo 
 tests/                      testes (pytest) do harness, do app e das instruções — só no código-fonte
 dev/publicar_versao.py      publica uma versão com as conferências (main atualizada, CHANGELOG)
 .github/workflows/ci.yml    roda os testes em todo PR
-app/                        app Fabric Doc Helper: main.py (interface), marca.py (design system
-                            BlueOps: temas, componentes), icones/ (SVGs oficiais VS Code e Claude,
+app/                        app Fabric Doc Helper: main.py (interface), marca.py (logo, tema
+                            escuro, componentes), icones/ (SVGs oficiais VS Code e Claude,
                             Simple Icons CC0) e servicos.py (projetos, harness, ferramentas,
-                            versões do app e do documento). Não vai para as pastas de projeto
+                            versões do app e do documento, referências). Não vai para as pastas
+                            de projeto
 pyproject.toml / uv.lock    dependências (Python 3.12, ms-fabric-cli…)
 .mcp.json                   MCP microsoft-learn para o Claude Code
 .agents/

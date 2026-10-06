@@ -7,11 +7,13 @@ Uso (PowerShell, sem precisar baixar nada antes):
 O que faz:
   1. Instala o uv (winget), se faltar. Nao precisa de Git.
   2. Baixa a ultima versao publicada (tag vX.Y.Z, .zip do GitHub) para
-     %LOCALAPPDATA%\Programs\fabric-ai-doc-helper\versoes\<versao> e prepara o ambiente (uv sync).
-     O app instalado NAO e um repositorio Git.
+     %USERPROFILE%\FabricDocHelper\app\versoes\<versao> e prepara o ambiente (uv sync).
+     O app instalado NAO e um repositorio Git. Na mesma pasta ficam Projetos\ (projetos novos)
+     e dados\ (lista de projetos e log).
   3. Cria os atalhos "Fabric Doc Helper" no Menu Iniciar e na Area de Trabalho e abre o app.
 Rodar de novo instala a versao mais nova. Projetos e configuracoes nao sao afetados.
-Uma instalacao antiga (v1, baseada em Git) e substituida automaticamente.
+Instalacoes antigas (em %LOCALAPPDATA%\Programs\fabric-ai-doc-helper) sao substituidas: o app traz
+a lista de projetos ao abrir; os projetos continuam nas pastas em que foram criados.
 
 Versao especifica (ex.: voltar atras):
     $env:FDH_VERSAO = 'v2.0.0'; irm https://raw.githubusercontent.com/leonardo-trindade/fabric-ai-doc-helper/main/instalar.ps1 | iex
@@ -65,8 +67,10 @@ function Uv-Sync($Pasta) {
 try {
     Atualizar-Path
     Garantir-Uv
-    $Base = Join-Path $env:LOCALAPPDATA 'Programs\fabric-ai-doc-helper'
+    $Casa = Join-Path $env:USERPROFILE 'FabricDocHelper'
+    $Base = Join-Path $Casa 'app'
     $Versoes = Join-Path $Base 'versoes'
+    $Antiga = Join-Path $env:LOCALAPPDATA 'Programs\fabric-ai-doc-helper'   # ate a v2.3
 
     if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot 'app\main.py')) -and
         ((Split-Path $PSScriptRoot -Parent) -ne $Versoes)) {
@@ -78,12 +82,6 @@ try {
         $NomeAtalho = "$Nome (dev)"
     } else {
         # ---------------- producao: versao publicada, sem Git
-        if (Test-Path (Join-Path $Base '.git')) {
-            Passo 'Removendo a instalacao antiga (v1, baseada em Git). Projetos e configuracoes sao mantidos.'
-            Get-ChildItem $Base -Force | Where-Object { $_.Name -ne 'versoes' } |
-                Remove-Item -Recurse -Force -ErrorAction Stop
-        }
-
         Passo 'Consultando as versoes publicadas'
         $Tags = Invoke-RestMethod "https://api.github.com/repos/$Repo/tags?per_page=100" -Headers @{ 'User-Agent' = 'fabric-doc-helper' }
         $Publicadas = @($Tags.name | Where-Object { $_ -match '^v\d+\.\d+\.\d+$' -and [version]$_.Substring(1) -ge $Minima } |
@@ -112,6 +110,11 @@ try {
         Passo 'Preparando o ambiente (pode levar alguns minutos na primeira vez)'
         Uv-Sync $Destino
         Set-Content -Path (Join-Path $Base 'atual.txt') -Value $Versao -Encoding ASCII
+        New-Item -ItemType Directory -Force (Join-Path $Casa 'Projetos') | Out-Null
+        if (Test-Path $Antiga) {
+            Passo 'Removendo o app do local antigo. Projetos e configuracoes sao mantidos.'
+            Remove-Item $Antiga -Recurse -Force -ErrorAction SilentlyContinue
+        }
         $NomeAtalho = $Nome
     }
 
