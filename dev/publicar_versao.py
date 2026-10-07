@@ -1,8 +1,8 @@
 """Publica uma versão do Fabric Doc Helper (tag vX.Y.Z) com as conferências que faltaram antes.
 
 Uso, no código-fonte (repositório fabric-ai-doc-helper), com o modo manutenção ligado:
-    uv run python dev/publicar_versao.py v2.2.0             # cria e envia a tag
-    uv run python dev/publicar_versao.py v2.2.0 --release   # e cria a página de release no GitHub
+    uv run python dev/publicar_versao.py v1.1.0             # cria e envia a tag
+    uv run python dev/publicar_versao.py v1.1.0 --release   # e cria a página de release no GitHub
 
 Antes de criar a tag, confere:
   - código-fonte em modo manutenção (o script faz `git push`; nunca roda numa pasta de projeto);
@@ -82,7 +82,7 @@ def conferir(tag: str, raiz: Path = RAIZ, buscar: bool = True) -> tuple[str, str
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("versao", help="ex.: v2.2.0")
+    ap.add_argument("versao", help="ex.: v1.1.0")
     ap.add_argument("--release", action="store_true", help="também cria a página de release no GitHub")
     ap.add_argument("--sim", action="store_true", help="não pergunta (uso em automação)")
     a = ap.parse_args()

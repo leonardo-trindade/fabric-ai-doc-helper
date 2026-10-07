@@ -65,7 +65,7 @@ permissão e refaz o login antes de continuar.
   Projetos\                  pasta padrão dos projetos (dá para trocar nas Configurações)
   dados\                     lista de projetos (app.json) e log do app (app.log)
 ```
-Até a v2.3 o app ficava em `%LOCALAPPDATA%` e os projetos em `C:\Fabric`. Ao abrir a versão nova,
+Instalações anteriores ficavam em `%LOCALAPPDATA%` e os projetos em `C:\Fabric`. Ao abrir a versão nova,
 o app traz a lista de projetos e passa a criar os novos em `Projetos\`; os projetos já existentes
 continuam onde estão.
 
@@ -190,14 +190,14 @@ As demais regras (pasta, somente leitura no Fabric, sem cópias) continuam valen
 
 ## 6. Versões e atualizações
 
-Quem usa o app recebe só **versões publicadas** (tags `vX.Y.Z`, a partir da v2.0.0), nunca o
+Quem usa o app recebe só **versões publicadas** (tags `vX.Y.Z`, a partir da v1.0.0), nunca o
 que acabou de entrar na `main`.
 
 - **Aviso automático:** ao abrir, o app verifica se há versão nova e mostra as novidades
   (do `CHANGELOG.md`) com o botão **Atualizar agora**.
 - **Manual:** Configurações → **Atualizar para a mais nova**.
 - **Voltar atrás:** Configurações → escolha a versão → **Instalar versão escolhida**
-  (ou `$env:FDH_VERSAO = 'v2.0.0'` antes do comando de instalação). As 3 versões mais novas
+  (ou `$env:FDH_VERSAO = 'v1.0.0'` antes do comando de instalação). As 3 versões mais novas
   ficam guardadas em `versoes\`, então voltar para uma delas é imediato.
 - **Projetos:** cada um recebe a versão em uso ao ser aberto pelo app. A pasta `projeto/`
   nunca é tocada; uma pasta com o assistente editado à mão não é atualizada (o app avisa).
@@ -235,7 +235,7 @@ código-fonte: não vão para as pastas de projeto, e o pytest não é instalado
    ```powershell
    git switch main
    git pull
-   uv run python dev/publicar_versao.py v2.2.0 --release
+   uv run python dev/publicar_versao.py v1.1.0 --release
    ```
    O script só cria a tag se o commit local for o da `main` do GitHub, se a versão for maior que a
    última e se o CHANGELOG tiver a seção dela. Ele mostra o commit e as notas e pede confirmação.
@@ -254,7 +254,7 @@ código-fonte: não vão para as pastas de projeto, e o pytest não é instalado
 | Botão do VS Code/Claude Desktop cinza no app | Ferramenta não instalada (o app procura no Menu Iniciar e no registro). Instale e reabra o app |
 | VS Code sem a extensão Claude Code | App → Configurações → **Instalar extensão Claude Code** |
 | App não abre pelo atalho | Veja `%USERPROFILE%\FabricDocHelper\dados\app.log` ou rode o instalador de novo (se o app estiver aberto, feche antes) |
-| Faixa "Instalação antiga (v1)" no app | Rode o instalador de novo: ele troca a instalação baseada em Git pela atual, mantendo projetos e configurações |
+| Faixa "Instalação antiga (baseada em Git)" no app | Rode o instalador de novo: ele troca a instalação baseada em Git pela atual, mantendo projetos e configurações |
 | "Assistente desta pasta foi editado localmente" | Alguém alterou arquivos do assistente na pasta do projeto. Desfaça a alteração (ou apague o arquivo citado) e abra o projeto de novo |
 | Sumário do Word desatualizado | `powershell -ExecutionPolicy Bypass -File scripts/finalizar_docx.ps1 projeto/docs/<arquivo>.docx` ou, no Word, botão direito no sumário → Atualizar campo |
 | Consumo de capacidade (CU) | Não é acessível pelo Fabric CLI; depende do app *Microsoft Fabric Capacity Metrics* e de permissão na capacidade |
