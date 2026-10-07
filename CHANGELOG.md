@@ -5,6 +5,13 @@ atualização, então escreva para quem usa: o que muda no dia a dia e se é pre
 
 Formato: `## vX.Y.Z — AAAA-MM-DD` (X = muda o jeito de trabalhar · Y = novidade · Z = correção).
 
+## v2.4.1 — 2026-10-06
+Ajuste visual. Nada muda no seu dia a dia.
+- Na janela de referências, arquivos com nome comprido desalinhavam a lista e criavam uma barra de
+  rolagem lateral. Agora as linhas ficam alinhadas e o nome longo termina em "…" (o nome inteiro
+  aparece ao passar o mouse).
+- Textos da janela de referências mais diretos.
+
 ## v2.4.0 — 2026-10-05
 O app muda de lugar e ganha referências por categoria, exclusão de projeto e marcação de pronto.
 

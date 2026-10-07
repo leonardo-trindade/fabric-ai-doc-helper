@@ -177,8 +177,7 @@ def botao_referencias(p: s.Projeto, e: s.Estado) -> None:
 async def anexar(p: s.Projeto, tipo: str) -> None:
     categoria = s.CATEGORIAS[tipo]
     if not NATIVO:  # no navegador não há caminho de arquivo: envia pelo formulário
-        dlg, cartao = dialogo(f"Anexar · {categoria}", "Os arquivos são copiados para a pasta de referências do "
-                              "projeto; o original não é alterado.", 520)
+        dlg, cartao = dialogo(f"Anexar · {categoria}", "Escolha os arquivos que complementam a documentação.", 520)
 
         async def recebido(ev) -> None:
             dados = await ev.file.read()
@@ -217,8 +216,8 @@ async def anexar(p: s.Projeto, tipo: str) -> None:
 
 def dialogo_referencias(p: s.Projeto) -> None:
     dlg, cartao = dialogo(f"Referências · {p.projeto}",
-                          "Arquivos que o assistente usa para completar escopo e mapeamento. Ficam na pasta do "
-                          "projeto; o assistente só os lê.", 680)
+                          "Arquivos que complementam a documentação, como levantamento de requisitos e "
+                          "mapeamento de tabelas.", 780)
 
     @ui.refreshable
     def lista() -> None:
@@ -230,7 +229,7 @@ def dialogo_referencias(p: s.Projeto) -> None:
             with ui.element("div").classes("fdh-ref" + ("" if r.tipo else " sem-categoria")):
                 ui.icon(ICONE_CATEGORIA.get(r.tipo, "help_outline")).style(
                     f"color: var({'--fdh-primary' if r.tipo else '--fdh-warn'})")
-                ui.label(r.arquivo.name).classes("nome").tooltip(str(r.arquivo))
+                ui.label(r.arquivo.name).classes("nome").tooltip(r.arquivo.name)  # nome longo: reticências
 
                 def mudar(ev, ref=r) -> None:
                     if ev.value and ev.value != ref.tipo:
@@ -245,8 +244,8 @@ def dialogo_referencias(p: s.Projeto) -> None:
                       on_click=lambda ref=r: confirmar_remocao(ref)).props("dense")
 
     def confirmar_remocao(ref: s.Referencia) -> None:
-        conf, c = dialogo("Remover referência?", f"{ref.arquivo.name} será apagado da pasta do projeto "
-                          "(só a cópia; o arquivo de onde você anexou não é tocado).", 460)
+        conf, c = dialogo("Remover referência?", f"{ref.arquivo.name} sai do projeto. O arquivo original "
+                          "não é alterado.", 460)
 
         def remover_ref() -> None:
             s.remover_referencia(p.pasta, ref)
