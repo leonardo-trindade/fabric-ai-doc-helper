@@ -16,7 +16,7 @@ Instalacoes antigas (em %LOCALAPPDATA%\Programs\fabric-ai-doc-helper) sao substi
 a lista de projetos ao abrir; os projetos continuam nas pastas em que foram criados.
 
 Versao especifica (ex.: voltar atras):
-    $env:FDH_VERSAO = 'v2.0.0'; irm https://raw.githubusercontent.com/leonardo-trindade/fabric-ai-doc-helper/main/instalar.ps1 | iex
+    $env:FDH_VERSAO = 'v1.0.0'; irm https://raw.githubusercontent.com/leonardo-trindade/fabric-ai-doc-helper/main/instalar.ps1 | iex
 
 Desenvolvimento (de dentro de um clone do codigo-fonte):
     powershell -ExecutionPolicy Bypass -File instalar.ps1
@@ -27,7 +27,7 @@ $ProgressPreference = 'SilentlyContinue'   # Invoke-WebRequest muito mais rapido
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $Repo = 'leonardo-trindade/fabric-ai-doc-helper'
 $Nome = 'Fabric Doc Helper'
-$Minima = [version]'2.0.0'   # versoes anteriores eram clones Git e nao rodam neste formato
+$Minima = [version]'1.0.0'   # numeracao recomecou em v1.0.0 (tags antigas apagadas)
 
 function Passo($t) { Write-Host "`n==> $t" -ForegroundColor Cyan }
 function Atualizar-Path {
@@ -70,7 +70,7 @@ try {
     $Casa = Join-Path $env:USERPROFILE 'FabricDocHelper'
     $Base = Join-Path $Casa 'app'
     $Versoes = Join-Path $Base 'versoes'
-    $Antiga = Join-Path $env:LOCALAPPDATA 'Programs\fabric-ai-doc-helper'   # ate a v2.3
+    $Antiga = Join-Path $env:LOCALAPPDATA 'Programs\fabric-ai-doc-helper'   # instalacoes anteriores
 
     if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot 'app\main.py')) -and
         ((Split-Path $PSScriptRoot -Parent) -ne $Versoes)) {
@@ -111,6 +111,9 @@ try {
         Uv-Sync $Destino
         Set-Content -Path (Join-Path $Base 'atual.txt') -Value $Versao -Encoding ASCII
         New-Item -ItemType Directory -Force (Join-Path $Casa 'Projetos') | Out-Null
+        # versoes instaladas que nao estao mais publicadas (ex.: numeracao antiga, v2.x) saem
+        Get-ChildItem $Versoes -Directory | Where-Object { $_.Name -match '^v\d+\.\d+\.\d+$' -and $Publicadas -notcontains $_.Name } |
+            ForEach-Object { Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
         if (Test-Path $Antiga) {
             Passo 'Removendo o app do local antigo. Projetos e configuracoes sao mantidos.'
             Remove-Item $Antiga -Recurse -Force -ErrorAction SilentlyContinue

@@ -7,8 +7,8 @@ Três coisas separadas:
 - Código-fonte: o repositório Git fabric-ai-doc-helper (branches, PRs, tags). Só para desenvolvimento.
 - App instalado: uma versão publicada (tag vX.Y.Z) baixada como .zip do GitHub e extraída em
   ~/FabricDocHelper/app/versoes/<versão>/. Não é repositório Git. Ao lado: Projetos/ (pasta padrão
-  dos projetos) e dados/ (lista de projetos e log). Até a v2.3 o app ficava em AppData; ao abrir,
-  ele se muda sozinho (migrar_local_antigo, mudar_de_local, remover_instalacao_antiga).
+  dos projetos) e dados/ (lista de projetos e log). Instalações anteriores ficavam em AppData; ao
+  abrir, o app se muda sozinho (migrar_local_antigo, mudar_de_local, remover_instalacao_antiga).
 - Pasta de projeto: pasta comum com o "harness" (instruções, skills, guarda, scripts, template e
   configuração do Python) copiado da versão instalada, mais projeto/ com os dados do cliente e o
   marcador .fabric-doc-helper.json (versão do harness + impressão digital de cada arquivo copiado).
@@ -35,14 +35,14 @@ from datetime import datetime
 from pathlib import Path
 
 REPO = "leonardo-trindade/fabric-ai-doc-helper"
-VERSAO_MINIMA = (2, 0, 0)  # versões anteriores eram clones Git e não rodam neste formato
+VERSAO_MINIMA = (1, 0, 0)  # numeração recomeçou em v1.0.0 (as tags antigas foram apagadas)
 RAIZ = Path(__file__).resolve().parents[1]  # versão em uso (origem do harness dos projetos)
 LOCAL = Path(os.environ.get("LOCALAPPDATA", Path.home()))
 # Tudo do app numa pasta do usuário: app\ (versões instaladas), Projetos\ e dados\ (lista de projetos, log).
 CASA = Path.home() / "FabricDocHelper"
 BASE_INSTALACAO = CASA / "app"
 VERSOES = BASE_INSTALACAO / "versoes"
-# Locais antigos (até a v2.3): app em AppData\Local\Programs, lista em AppData\Local, projetos em C:\Fabric.
+# Locais de instalações anteriores: app em AppData\Local\Programs, lista em AppData\Local, projetos em C:\Fabric.
 ANTIGA = LOCAL / "Programs" / "fabric-ai-doc-helper"
 DADOS_ANTIGOS = LOCAL / "fabric-ai-doc-helper"
 PADROES_ANTIGOS = {r"C:\Fabric", r"C:\Fabric-teste"}
@@ -53,8 +53,8 @@ def _mesmo(a: Path, b: Path) -> bool:
 
 
 _perfil = os.environ.get("FDH_PERFIL", "").lower()
-LEGADO = _mesmo(RAIZ, ANTIGA)  # instalação v1 (clone Git): o instalador novo substitui
-NO_LOCAL_ANTIGO = _mesmo(RAIZ.parent, ANTIGA / "versoes")  # v2.0–2.3 atualizada pelo app: o app se muda
+LEGADO = _mesmo(RAIZ, ANTIGA)  # instalação antiga baseada em Git: o instalador novo substitui
+NO_LOCAL_ANTIGO = _mesmo(RAIZ.parent, ANTIGA / "versoes")  # instalação anterior atualizada pelo app: o app se muda
 MODO_DEV = _perfil == "dev" or (_perfil != "producao" and not LEGADO and not NO_LOCAL_ANTIGO
                                 and not _mesmo(RAIZ.parent, VERSOES))
 if MODO_DEV:  # desenvolvimento: lista e projetos separados do uso real
@@ -123,7 +123,7 @@ def migrar_local_antigo() -> str | None:
 
 
 def mudar_de_local() -> tuple[bool, str]:
-    """App v2.0–2.3 atualizado pelo próprio app continua em AppData: instala esta versão no local novo."""
+    """App de instalação anterior, atualizado pelo próprio app, continua em AppData: instala esta versão no local novo."""
     if not NO_LOCAL_ANTIGO:
         return True, ""
     return instalar_versao(RAIZ.name)
@@ -407,7 +407,7 @@ def adicionar_existente(cfg: Config, pasta: str, ferramenta: str) -> Projeto:
     if any(_mesmo(Path(p.pasta), destino) for p in cfg.projetos):
         raise ValueError("Essa pasta já está cadastrada.")
     y = ler_yaml(destino)
-    id_antigo = destino / "projeto" / ".id"  # projetos da v1
+    id_antigo = destino / "projeto" / ".id"  # projetos da época do Git
     pid = marc.get("id") or (id_antigo.read_text(encoding="utf-8").strip() if id_antigo.is_file() else uuid.uuid4().hex)
     if not marc:
         _gravar_marcador(destino, {"id": pid, "criado_em": agora()})
@@ -677,7 +677,7 @@ def versao_atual() -> str:
                 return "dev-" + r.stdout.strip()
         return "dev"
     if LEGADO:
-        return "v1 (antiga)"
+        return "antiga (Git)"
     return RAIZ.name
 
 
@@ -689,7 +689,7 @@ def _baixar(url: str, timeout: int = 60) -> bytes:
 
 
 def versoes_publicadas() -> list[str]:
-    """Versões (tags vX.Y.Z ≥ v2.0.0) publicadas no GitHub, da mais nova para a mais antiga."""
+    """Versões (tags vX.Y.Z ≥ v1.0.0) publicadas no GitHub, da mais nova para a mais antiga."""
     dados = json.loads(_baixar(f"https://api.github.com/repos/{REPO}/tags?per_page=100"))
     tags = [t["name"] for t in dados if (_semver(t["name"]) or (0, 0, 0)) >= VERSAO_MINIMA]
     return sorted(tags, key=_semver, reverse=True)
@@ -755,9 +755,13 @@ def criar_atalhos(raiz: Path, nome: str = "Fabric Doc Helper") -> tuple[bool, st
     return r.returncode == 0, _erro(r)
 
 
-def _limpar_versoes(manter: set[str], quantas: int = 3) -> None:
-    """Mantém as `quantas` versões mais novas instaladas (e as de `manter`); apaga as demais."""
-    for tag in versoes_instaladas()[quantas:]:
+def _limpar_versoes(manter: set[str], quantas: int = 3, publicadas: list[str] | None = None) -> None:
+    """Mantém as `quantas` versões mais novas instaladas (e as de `manter`); apaga as demais e as que
+    não estão mais publicadas no GitHub (`publicadas`; ex.: numeração antiga, de antes da v1.0.0)."""
+    instaladas = versoes_instaladas()
+    sobras = instaladas[quantas:] if publicadas is None else (
+        [t for t in instaladas if t not in publicadas] + [t for t in instaladas if t in publicadas][quantas:])
+    for tag in sobras:
         if tag not in manter:
             try:
                 _apagar(VERSOES / tag)
@@ -775,7 +779,7 @@ def instalar_versao(tag: str | None = None) -> tuple[bool, str]:
     except Exception as e:  # noqa: BLE001
         return False, f"Não foi possível consultar as versões no GitHub: {e}"
     if not tags:
-        return False, "Ainda não há versão publicada (v2.0.0 ou mais nova)."
+        return False, "Ainda não há versão publicada."
     alvo = tag or tags[0]
     if alvo not in tags:
         return False, f"Versão {alvo} não encontrada."
@@ -792,6 +796,6 @@ def instalar_versao(tag: str | None = None) -> tuple[bool, str]:
     if not ok:
         return False, f"Versão {alvo} instalada, mas os atalhos não foram atualizados: {msg}"
     (BASE_INSTALACAO / "atual.txt").write_text(alvo, encoding="utf-8")
-    _limpar_versoes(manter={alvo, versao_atual()})
+    _limpar_versoes(manter={alvo, versao_atual()}, publicadas=tags)
     return True, (f"Versão {alvo} instalada. Feche e abra o app pelo atalho; cada projeto recebe a "
                   "versão nova ao ser aberto.")

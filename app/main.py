@@ -24,7 +24,7 @@ if sys.stdout is None or sys.stderr is None:  # pythonw (atalho, sem console): s
 
 from nicegui import app, run, ui  # noqa: E402
 
-try:  # 1ª abertura depois da v2.3: traz a lista de projetos do local antigo (AppData)
+try:  # 1ª abertura após instalação anterior: traz a lista de projetos do local antigo (AppData)
     AVISO_MIGRACAO = s.migrar_local_antigo()
 except OSError as e:
     AVISO_MIGRACAO = f"Não foi possível trazer a lista de projetos do local antigo ({s.DADOS_ANTIGOS}): {e}"
@@ -411,7 +411,7 @@ def dialogo_config() -> None:
             ui.label("Modo desenvolvimento: o app roda do código-fonte e os projetos de teste recebem o assistente "
                      "direto da pasta de trabalho (inclusive o que não foi commitado).").classes("fdh-mudo")
         elif s.LEGADO:
-            ui.label("Instalação antiga (v1). Rode o instalador de novo para passar ao formato atual.").classes(
+            ui.label("Instalação antiga (baseada em Git). Rode o instalador de novo para passar ao formato atual.").classes(
                 "fdh-mudo").style("color: var(--fdh-warn)")
         else:
             status = ui.label().classes("fdh-mudo")
@@ -664,7 +664,7 @@ async def pagina() -> None:
             ui.label(f"DESENVOLVIMENTO · código-fonte em {s.RAIZ} · projetos e lista separados do uso real "
                      f"(pasta padrão {s.PASTA_PADRAO})").classes("fdh-faixa w-full")
         elif s.LEGADO:
-            ui.label("Instalação antiga (v1). Rode o instalador de novo para passar ao formato atual "
+            ui.label("Instalação antiga (baseada em Git). Rode o instalador de novo para passar ao formato atual "
                      "(seus projetos e configurações são mantidos).").classes("fdh-faixa w-full")
         elif s.NO_LOCAL_ANTIGO:
             faixa = ui.label(f"O app está mudando para {s.CASA} (pasta com o app, os projetos novos e a lista). "

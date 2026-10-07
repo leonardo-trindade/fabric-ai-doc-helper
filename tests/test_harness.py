@@ -159,6 +159,15 @@ def test_limpeza_mantem_3_versoes(app_dev, app_producao):
     assert s.versoes_instaladas() == ["v2.1.0", "v2.0.0", "v1.9.0"]
 
 
+def test_limpeza_tira_versoes_nao_publicadas(app_dev, app_producao):
+    """Numeração recomeçada: versões antigas (maiores, mas retiradas do GitHub) saem; a v1 nova fica."""
+    for t in ("v2.4.1", "v2.4.0", "v2.3.0", "v1.0.0"):
+        (s.VERSOES / t / "app").mkdir(parents=True, exist_ok=True)
+        (s.VERSOES / t / "app" / "main.py").write_text("")
+    s._limpar_versoes(manter={"v1.0.0", "v2.4.1"}, publicadas=["v1.0.0"])  # v2.4.1 em uso: fica por ora
+    assert s.versoes_instaladas() == ["v2.4.1", "v1.0.0"]
+
+
 def test_dev_recusa_instalar_versao(app_dev):
     assert s.instalar_versao()[0] is False
 
