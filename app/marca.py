@@ -151,13 +151,20 @@ body { background: var(--fdh-bg) !important; color: var(--fdh-text);
 .fdh-menu .q-item__label--caption { color: var(--fdh-muted); }
 
 /* Referências do projeto */
-.fdh-ref { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--fdh-border);
-           border-radius: var(--fdh-radius-sm); background: var(--fdh-surface-2); min-width: 0; }
-.fdh-ref .nome { font-size: 13px; font-weight: 600; color: var(--fdh-text); overflow: hidden; text-overflow: ellipsis;
-                 white-space: nowrap; flex: 1; min-width: 0; }
-.fdh-ref .q-select { width: 250px; flex: none; }
+/* Linhas de largura igual em colunas fixas: ícone | nome (reticências) | categoria | abrir | remover */
+.fdh-ref { display: grid; grid-template-columns: 20px minmax(0, 1fr) 240px 32px 32px; align-items: center;
+           column-gap: 10px; width: 100%; box-sizing: border-box; padding: 6px 8px 6px 12px;
+           border: 1px solid var(--fdh-border); border-radius: var(--fdh-radius-sm); background: var(--fdh-surface-2); }
+.fdh-ref .nome { font-size: 13px; font-weight: 600; color: var(--fdh-text); min-width: 0;
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fdh-ref .q-select { width: 100%; min-width: 0; }
+.fdh-ref .q-btn { justify-self: center; }
 .fdh-ref.sem-categoria { border-color: var(--fdh-warn); }
-@media (max-width: 599px) { .fdh-ref { flex-wrap: wrap; } .fdh-ref .q-select { width: 100%; } }
+.fdh-dialogo { overflow-x: hidden; }
+@media (max-width: 599px) {
+  .fdh-ref { grid-template-columns: 20px minmax(0, 1fr) 32px 32px; row-gap: 6px; }
+  .fdh-ref .q-select { grid-column: 2 / -1; grid-row: 2; }
+}
 
 /* Escolha da ferramenta (VS Code / Claude Desktop) */
 .fdh-ferramenta { display: flex; align-items: center; gap: 8px; padding: 7px 10px; flex: 1; min-width: 0;
